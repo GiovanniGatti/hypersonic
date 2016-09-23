@@ -1,0 +1,4 @@
+@ParametersAreNonnullByDefault
+package player.contest;
+
+import javax.annotation.ParametersAreNonnullByDefault;
