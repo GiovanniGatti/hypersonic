@@ -1,14 +1,15 @@
 package player;
 
+import jdk.nashorn.internal.ir.annotations.Immutable;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
-
-import jdk.nashorn.internal.ir.annotations.Immutable;
 
 public final class Player {
 
@@ -43,7 +44,128 @@ public final class Player {
         public Action[] play() {
             gridEvaluation = new int[repo.height][repo.width];
 
-            return new Action[] { Action.bomb(6, 5) };
+            Bomberman player = repo.getPlayer();
+
+            int explosionRange = player.getExplosionRange();
+            CellType[][] grid = repo.getGrid();
+
+            int width = repo.getWidth();
+            int height = repo.getHeight();
+
+            List<Box> boxes = repo.getBoxes();
+
+            for (Bomb bomb : repo.getBombs()) {
+                int x = bomb.getX();
+                int y = bomb.getY();
+
+                // evaluating left X axis
+                for (int j = x - 1; j > x - explosionRange; j--) {
+                    if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
+                        boxes.remove(new Box(j, y));
+                        break;
+                    }
+                }
+
+                // evaluating right X axis
+                for (int j = x + 1; j < x + explosionRange; j++) {
+                    if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
+                        boxes.remove(new Box(j, y));
+                        break;
+                    }
+                }
+
+                // evaluating upper Y axis
+                for (int i = y - 1; i > y - explosionRange; i--) {
+                    if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                        boxes.remove(new Box(x, i));
+                        break;
+                    }
+                }
+
+                // evaluating down Y axis
+                for (int i = y + 1; i < y + explosionRange; i++) {
+                    if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                        boxes.remove(new Box(x, i));
+                        break;
+                    }
+                }
+            }
+
+            for (Box box : boxes) {
+                int x = box.getX();
+                int y = box.getY();
+
+                // evaluating left X axis
+                for (int j = x - 1; j > x - explosionRange; j--) {
+                    if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
+                        break;
+                    }
+                    gridEvaluation[y][j]++;
+                }
+
+                // evaluating right X axis
+                for (int j = x + 1; j < x + explosionRange; j++) {
+                    if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
+                        break;
+                    }
+                    gridEvaluation[y][j]++;
+                }
+
+                // evaluating upper Y axis
+                for (int i = y - 1; i > y - explosionRange; i--) {
+                    if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                        break;
+                    }
+                    gridEvaluation[i][x]++;
+                }
+
+                // evaluating down Y axis
+                for (int i = y + 1; i < y + explosionRange; i++) {
+                    if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                        break;
+                    }
+                    gridEvaluation[i][x]++;
+                }
+            }
+
+            List<ScoredCell> cells = new ArrayList<>();
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    cells.add(new ScoredCell(gridEvaluation[i][j], j, i));
+                }
+            }
+
+            Collections.sort(cells,
+                    Comparator.comparing(ScoredCell::getScore).reversed()
+                            .thenComparing(c -> c.squareDistTo(player.x, player.y)));
+
+            ScoredCell target = cells.iterator().next();
+
+            if (player.x == target.x && player.y == target.y) {
+                return new Action[]{Action.bomb(target.x, target.y)};
+            }
+
+            return new Action[]{Action.move(target.x, target.y)};
+        }
+    }
+
+    @Immutable
+    public static class ScoredCell {
+        private final int score;
+        private final int x, y;
+
+        public ScoredCell(int score, int x, int y) {
+            this.score = score;
+            this.x = x;
+            this.y = y;
+        }
+
+        public int getScore() {
+            return score;
+        }
+
+        double squareDistTo(int x, int y) {
+            return (x - this.x) * (x - this.x) + (y - this.y) * (y - this.y);
         }
     }
 
