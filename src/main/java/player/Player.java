@@ -399,7 +399,7 @@ public final class Player {
         }
 
         Cell asCell() {
-            return this;
+            return new Cell(getX(), getY());
         }
 
         @Override

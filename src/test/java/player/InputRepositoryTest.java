@@ -1,5 +1,6 @@
 package player;
 
+import static player.Player.CellType.BLOCK;
 import static player.Player.CellType.BOX;
 import static player.Player.CellType.FLOOR;
 import static player.Player.ItemType.EXTRA_BOMB;
@@ -33,7 +34,7 @@ class InputRepositoryTest implements WithAssertions {
         InputSupplier inputSupplier =
                 state.withGrid(
                         ".0.",
-                        "0.0",
+                        "0X0",
                         ".0.")
                         .withBombermans(anyBombermanWith(0, 0, 0), anyBombermanWith(2, 2, 0))
                         .toInputSupplier();
@@ -45,7 +46,7 @@ class InputRepositoryTest implements WithAssertions {
         assertThat(repository.getGrid()[0][1]).isEqualByComparingTo(BOX);
         assertThat(repository.getGrid()[0][2]).isEqualByComparingTo(FLOOR);
         assertThat(repository.getGrid()[1][0]).isEqualByComparingTo(BOX);
-        assertThat(repository.getGrid()[1][1]).isEqualByComparingTo(FLOOR);
+        assertThat(repository.getGrid()[1][1]).isEqualByComparingTo(BLOCK);
         assertThat(repository.getGrid()[1][2]).isEqualByComparingTo(BOX);
         assertThat(repository.getGrid()[2][0]).isEqualByComparingTo(FLOOR);
         assertThat(repository.getGrid()[2][1]).isEqualByComparingTo(BOX);
