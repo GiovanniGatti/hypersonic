@@ -1,6 +1,7 @@
 package player;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -67,13 +68,15 @@ public final class Player {
             List<ScoredCell> cells = new ArrayList<>();
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++) {
-                    cells.add(new ScoredCell(gridEvaluation[i][j], j, i));
+                    if (repo.distanceTo(j, i) < Integer.MAX_VALUE) {
+                        cells.add(new ScoredCell(gridEvaluation[i][j], j, i));
+                    }
                 }
             }
 
             Collections.sort(cells,
                     Comparator.comparing(ScoredCell::getScore).reversed()
-                            .thenComparing(c -> c.squareDistTo(player)));
+                            .thenComparing(c -> repo.distanceTo(c.getX(), c.getY())));
 
             ScoredCell target = cells.iterator().next();
 
@@ -106,6 +109,10 @@ public final class Player {
 
         private final List<Item> items;
 
+        private final int[][] distTo;
+
+        private final HashMap<Cell, Bomb> bombsAt;
+
         InputRepository(InputSupplier in) {
             this.in = in;
             this.width = in.nextInt();
@@ -121,7 +128,14 @@ public final class Player {
             this.ownerBombs = new HashMap<>();
             this.opponents = new ArrayList<>();
             this.bombs = new ArrayList<>();
-            items = new ArrayList<>();
+            this.items = new ArrayList<>();
+
+            this.distTo = new int[height][width];
+            for (int i = 0; i < height; i++) {
+                Arrays.fill(distTo[i], Integer.MAX_VALUE);
+            }
+
+            this.bombsAt = new HashMap<>();
         }
 
         @Override
@@ -134,6 +148,7 @@ public final class Player {
             ownerBombs.clear();
             bombs.clear();
             items.clear();
+            bombsAt.clear();
 
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
@@ -178,10 +193,13 @@ public final class Player {
                     ownerBombs.putIfAbsent(owner, new ArrayList<>());
                     ownerBombs.get(owner).add(bomb);
                     bombs.add(bomb);
+                    bombsAt.put(new Cell(x, y), bomb);
                 } else {
                     items.add(new Item((param1 == 1) ? ItemType.EXTRA_RANGE : ItemType.EXTRA_BOMB, x, y));
                 }
             }
+
+            runFloodFillDistCalculator(player.getX(), player.getY());
 
             in.nextLine();
         }
@@ -266,6 +284,70 @@ public final class Player {
                 }
                 consumer.accept(x, i);
             }
+        }
+
+        private boolean hasBombAt(int x, int y) {
+            return bombsAt.containsKey(new Cell(x, y));
+        }
+
+        public int distanceTo(int x, int y) {
+            return distTo[y][x];
+        }
+
+        private void runFloodFillDistCalculator(int i, int j) {
+            boolean[][] mark = new boolean[distTo.length][distTo[0].length];
+            distTo[i][j] = 0;
+            mark[i][j] = true;
+            runFloodFillDistCalculator(mark, i - 1, j);
+            runFloodFillDistCalculator(mark, i + 1, j);
+            runFloodFillDistCalculator(mark, i, j - 1);
+            runFloodFillDistCalculator(mark, i, j + 1);
+        }
+
+        private void runFloodFillDistCalculator(boolean[][] mark, int i, int j) {
+            if (i < 0 || j < 0 || i >= distTo.length || j >= distTo[0].length) {
+                return;
+            }
+
+            if (mark[i][j]) {
+                return;
+            }
+
+            mark[i][j] = true;
+            int c1 = Integer.MAX_VALUE;
+            int c2 = Integer.MAX_VALUE;
+            int c3 = Integer.MAX_VALUE;
+            int c4 = Integer.MAX_VALUE;
+
+            if (i > 0 && grid[i - 1][j] == CellType.FLOOR && !hasBombAt(j, i - 1)) {
+                c1 = distTo[i - 1][j];
+            }
+
+            if (i + 1 < distTo.length && grid[i + 1][j] == CellType.FLOOR && !hasBombAt(j, i + 1)) {
+                c2 = distTo[i + 1][j];
+            }
+
+            if (j > 0 && grid[i][j - 1] == CellType.FLOOR && !hasBombAt(j - 1, i)) {
+                c3 = distTo[i][j - 1];
+            }
+
+            if (j + 1 < distTo.length && grid[i][j + 1] == CellType.FLOOR && !hasBombAt(j + 1, i)) {
+                c4 = distTo[i][j + 1];
+            }
+
+            distTo[i][j] = saturatedPlus1(Math.min(Math.min(Math.min(c1, c2), c3), c4));
+
+            runFloodFillDistCalculator(mark, i - 1, j);
+            runFloodFillDistCalculator(mark, i + 1, j);
+            runFloodFillDistCalculator(mark, i, j - 1);
+            runFloodFillDistCalculator(mark, i, j + 1);
+        }
+
+        private static int saturatedPlus1(int v) {
+            if (v == Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            }
+            return v + 1;
         }
     }
 

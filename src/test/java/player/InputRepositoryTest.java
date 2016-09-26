@@ -157,7 +157,44 @@ class InputRepositoryTest implements WithAssertions {
                         new Item(ItemType.EXTRA_BOMB, 2, 1));
     }
 
+    @Test
+    @DisplayName("compute the correct distances from player")
+    void computeCorrectDistances() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        "....",
+                        ".2X.",
+                        "1..1")
+                        .withMyId(0)
+                        .withBombermans(anyBombermanWith(0, 0, 0), anyBombermanWith(1, 2, 2))
+                        .withBombs(anyBombAt(0, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        assertThat(repository.distanceTo(0, 0)).isEqualTo(0);
+        assertThat(repository.distanceTo(0, 1)).isEqualTo(1);
+        assertThat(repository.distanceTo(0, 2)).isEqualTo(2);
+
+        assertThat(repository.distanceTo(1, 0)).isEqualTo(1);
+        assertThat(repository.distanceTo(1, 1)).isEqualTo(2);
+        assertThat(repository.distanceTo(1, 2)).isEqualTo(Integer.MAX_VALUE);
+
+        assertThat(repository.distanceTo(2, 0)).isEqualTo(2);
+        assertThat(repository.distanceTo(2, 1)).isEqualTo(3);
+        assertThat(repository.distanceTo(2, 2)).isEqualTo(Integer.MAX_VALUE);
+
+        assertThat(repository.distanceTo(3, 0)).isEqualTo(3);
+        assertThat(repository.distanceTo(3, 1)).isEqualTo(Integer.MAX_VALUE);
+        assertThat(repository.distanceTo(3, 2)).isEqualTo(Integer.MAX_VALUE);
+    }
+
     private static Bomberman anyBombermanWith(int id, int x, int y) {
         return new Bomberman(id, x, y, 1, 3);
+    }
+
+    private static Bomb anyBombAt(int x, int y) {
+        return new Bomb(1, x, y, 8, 3);
     }
 }
