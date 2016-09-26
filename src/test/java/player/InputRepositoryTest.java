@@ -2,6 +2,9 @@ package player;
 
 import static player.Player.CellType.BOX;
 import static player.Player.CellType.FLOOR;
+import static player.Player.ItemType.EXTRA_BOMB;
+import static player.Player.ItemType.EXTRA_RANGE;
+import static player.Player.ItemType.NO_ITEM;
 
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import player.Player.Bomb;
 import player.Player.Bomberman;
-import player.Player.Cell;
+import player.Player.Box;
 import player.Player.InputRepository;
 import player.Player.InputSupplier;
 
@@ -118,7 +121,7 @@ class InputRepositoryTest implements WithAssertions {
         InputSupplier inputSupplier =
                 state.withGrid(
                         ".0.",
-                        "0.0",
+                        "1.2",
                         ".0.")
                         .toInputSupplier();
 
@@ -126,7 +129,11 @@ class InputRepositoryTest implements WithAssertions {
         repository.update();
 
         assertThat(repository.getBoxes())
-                .containsOnly(new Cell(1, 0), new Cell(0, 1), new Cell(2, 1), new Cell(1, 2));
+                .containsOnly(
+                        new Box(NO_ITEM, 1, 0),
+                        new Box(EXTRA_RANGE, 0, 1),
+                        new Box(EXTRA_BOMB, 2, 1),
+                        new Box(NO_ITEM, 1, 2));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {

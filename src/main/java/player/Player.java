@@ -9,8 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
-
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 
 import jdk.nashorn.internal.ir.annotations.Immutable;
 
@@ -52,7 +51,10 @@ public final class Player {
             int width = repo.getWidth();
             int height = repo.getHeight();
 
-            List<Cell> boxes = repo.getBoxes();
+            List<Cell> boxes =
+                    repo.getBoxes().stream()
+                            .map(Box::asCell)
+                            .collect(Collectors.toCollection(ArrayList::new));
 
             for (Bomb bomb : repo.getBombs()) {
                 repo.acceptForExplosionRange(bomb, (x, y) -> boxes.remove(new Cell(x, y)));
@@ -94,7 +96,7 @@ public final class Player {
         private int remainingRounds;
 
         private final CellType[][] grid;
-        private final List<Cell> boxes;
+        private final List<Box> boxes;
 
         private Bomberman player;
         private final List<Bomberman> opponents;
@@ -132,11 +134,20 @@ public final class Player {
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
                 for (int j = 0; j < row.length(); j++) {
-                    if (row.charAt(j) == '.') {
+                    char cell = row.charAt(j);
+                    if (cell == '.') {
                         this.grid[i][j] = CellType.FLOOR;
+                    } else if (cell == 'X') {
+                        this.grid[i][j] = CellType.BLOCK;
                     } else {
                         this.grid[i][j] = CellType.BOX;
-                        boxes.add(new Cell(j, i));
+                        if (cell == '0') {
+                            boxes.add(new Box(ItemType.NO_ITEM, j, i));
+                        } else if (cell == '1') {
+                            boxes.add(new Box(ItemType.EXTRA_RANGE, j, i));
+                        } else {
+                            boxes.add(new Box(ItemType.EXTRA_BOMB, j, i));
+                        }
                     }
                 }
             }
@@ -201,7 +212,7 @@ public final class Player {
             return ownerBombs.getOrDefault(owner, new ArrayList<>());
         }
 
-        public List<Cell> getBoxes() {
+        public List<Box> getBoxes() {
             return boxes;
         }
 
@@ -295,7 +306,7 @@ public final class Player {
         }
 
         @Override
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -348,7 +359,7 @@ public final class Player {
         }
 
         @Override
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -374,6 +385,43 @@ public final class Player {
     }
 
     @Immutable
+    public static final class Box extends Cell {
+
+        private final ItemType itemType;
+
+        public Box(ItemType itemType, int x, int y) {
+            super(x, y);
+            this.itemType = itemType;
+        }
+
+        public ItemType getItemType() {
+            return itemType;
+        }
+
+        Cell asCell() {
+            return this;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            if (!super.equals(o)) {
+                return false;
+            }
+
+            Box box = (Box) o;
+            return itemType == box.itemType;
+        }
+    }
+
+    @Immutable
     public static class Entity extends Cell {
 
         private final EntityType entityType;
@@ -388,7 +436,7 @@ public final class Player {
         }
 
         @Override
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -428,7 +476,7 @@ public final class Player {
         }
 
         @Override
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -446,6 +494,18 @@ public final class Player {
         public int hashCode() {
             return Objects.hash(x, y);
         }
+
+        @Override
+        public String toString() {
+            return "Cell{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
+        }
+    }
+
+    public enum ItemType {
+        NO_ITEM, EXTRA_RANGE, EXTRA_BOMB
     }
 
     public enum EntityType {
@@ -453,7 +513,7 @@ public final class Player {
     }
 
     public enum CellType {
-        FLOOR, BOX
+        FLOOR, BOX, BLOCK
     }
 
     public enum ActionType {
