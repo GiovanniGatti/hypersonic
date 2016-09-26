@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import player.Player.Bomb;
 import player.Player.Bomberman;
-import player.Player.Box;
+import player.Player.Cell;
 import player.Player.InputRepository;
 import player.Player.InputSupplier;
 
@@ -126,7 +126,7 @@ class InputRepositoryTest implements WithAssertions {
         repository.update();
 
         assertThat(repository.getBoxes())
-                .containsOnly(new Box(1, 0), new Box(0, 1), new Box(2, 1), new Box(1, 2));
+                .containsOnly(new Cell(1, 0), new Cell(0, 1), new Cell(2, 1), new Cell(1, 2));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {

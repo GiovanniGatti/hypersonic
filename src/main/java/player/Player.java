@@ -1,7 +1,5 @@
 package player;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -10,6 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.function.BiConsumer;
+
+import javax.annotation.Nullable;
+
+import jdk.nashorn.internal.ir.annotations.Immutable;
 
 public final class Player {
 
@@ -46,86 +49,17 @@ public final class Player {
 
             Bomberman player = repo.getPlayer();
 
-            int explosionRange = player.getExplosionRange();
-            CellType[][] grid = repo.getGrid();
-
             int width = repo.getWidth();
             int height = repo.getHeight();
 
-            List<Box> boxes = repo.getBoxes();
+            List<Cell> boxes = repo.getBoxes();
 
             for (Bomb bomb : repo.getBombs()) {
-                int x = bomb.getX();
-                int y = bomb.getY();
-
-                // evaluating left X axis
-                for (int j = x - 1; j > x - explosionRange; j--) {
-                    if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
-                        boxes.remove(new Box(j, y));
-                        break;
-                    }
-                }
-
-                // evaluating right X axis
-                for (int j = x + 1; j < x + explosionRange; j++) {
-                    if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
-                        boxes.remove(new Box(j, y));
-                        break;
-                    }
-                }
-
-                // evaluating upper Y axis
-                for (int i = y - 1; i > y - explosionRange; i--) {
-                    if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
-                        boxes.remove(new Box(x, i));
-                        break;
-                    }
-                }
-
-                // evaluating down Y axis
-                for (int i = y + 1; i < y + explosionRange; i++) {
-                    if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
-                        boxes.remove(new Box(x, i));
-                        break;
-                    }
-                }
+                repo.acceptForExplosionRange(bomb, (x, y) -> boxes.remove(new Cell(x, y)));
             }
 
-            for (Box box : boxes) {
-                int x = box.getX();
-                int y = box.getY();
-
-                // evaluating left X axis
-                for (int j = x - 1; j > x - explosionRange; j--) {
-                    if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
-                        break;
-                    }
-                    gridEvaluation[y][j]++;
-                }
-
-                // evaluating right X axis
-                for (int j = x + 1; j < x + explosionRange; j++) {
-                    if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
-                        break;
-                    }
-                    gridEvaluation[y][j]++;
-                }
-
-                // evaluating upper Y axis
-                for (int i = y - 1; i > y - explosionRange; i--) {
-                    if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
-                        break;
-                    }
-                    gridEvaluation[i][x]++;
-                }
-
-                // evaluating down Y axis
-                for (int i = y + 1; i < y + explosionRange; i++) {
-                    if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
-                        break;
-                    }
-                    gridEvaluation[i][x]++;
-                }
+            for (Cell box : boxes) {
+                repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
             }
 
             List<ScoredCell> cells = new ArrayList<>();
@@ -137,35 +71,15 @@ public final class Player {
 
             Collections.sort(cells,
                     Comparator.comparing(ScoredCell::getScore).reversed()
-                            .thenComparing(c -> c.squareDistTo(player.x, player.y)));
+                            .thenComparing(c -> c.squareDistTo(player)));
 
             ScoredCell target = cells.iterator().next();
 
-            if (player.x == target.x && player.y == target.y) {
-                return new Action[]{Action.bomb(target.x, target.y)};
+            if (player.getX() == target.getX() && player.getY() == target.getY()) {
+                return new Action[] { Action.bomb(target.getX(), target.getY()) };
             }
 
-            return new Action[]{Action.move(target.x, target.y)};
-        }
-    }
-
-    @Immutable
-    public static class ScoredCell {
-        private final int score;
-        private final int x, y;
-
-        public ScoredCell(int score, int x, int y) {
-            this.score = score;
-            this.x = x;
-            this.y = y;
-        }
-
-        public int getScore() {
-            return score;
-        }
-
-        double squareDistTo(int x, int y) {
-            return (x - this.x) * (x - this.x) + (y - this.y) * (y - this.y);
+            return new Action[] { Action.move(target.getX(), target.getY()) };
         }
     }
 
@@ -180,7 +94,7 @@ public final class Player {
         private int remainingRounds;
 
         private final CellType[][] grid;
-        private final List<Box> boxes;
+        private final List<Cell> boxes;
 
         private Bomberman player;
         private final List<Bomberman> opponents;
@@ -222,7 +136,7 @@ public final class Player {
                         this.grid[i][j] = CellType.FLOOR;
                     } else {
                         this.grid[i][j] = CellType.BOX;
-                        boxes.add(new Box(j, i));
+                        boxes.add(new Cell(j, i));
                     }
                 }
             }
@@ -287,7 +201,7 @@ public final class Player {
             return ownerBombs.getOrDefault(owner, new ArrayList<>());
         }
 
-        public List<Box> getBoxes() {
+        public List<Cell> getBoxes() {
             return boxes;
         }
 
@@ -295,13 +209,62 @@ public final class Player {
             return remainingRounds;
         }
 
+        void acceptForExplosionRange(Cell cell, BiConsumer<Integer, Integer> consumer) {
+            final int x = cell.getX();
+            final int y = cell.getY();
+            final int explosionRange = player.getExplosionRange();
+
+            // evaluating left X axis
+            for (int j = x - 1; j > x - explosionRange; j--) {
+                if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
+                    break;
+                }
+                consumer.accept(j, y);
+            }
+
+            // evaluating right X axis
+            for (int j = x + 1; j < x + explosionRange; j++) {
+                if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
+                    break;
+                }
+                consumer.accept(j, y);
+            }
+
+            // evaluating upper Y axis
+            for (int i = y - 1; i > y - explosionRange; i--) {
+                if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                    break;
+                }
+                consumer.accept(x, i);
+            }
+
+            // evaluating down Y axis
+            for (int i = y + 1; i < y + explosionRange; i++) {
+                if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                    break;
+                }
+                consumer.accept(x, i);
+            }
+        }
     }
 
     @Immutable
-    public static class Bomb {
+    public static final class ScoredCell extends Cell {
+        private final int score;
+
+        public ScoredCell(int score, int x, int y) {
+            super(x, y);
+            this.score = score;
+        }
+
+        public int getScore() {
+            return score;
+        }
+    }
+
+    @Immutable
+    public static final class Bomb extends Entity {
         private final int owner;
-        private final int x;
-        private final int y;
         private final int roundsToExplode;
         private final int explosionRange;
 
@@ -312,9 +275,9 @@ public final class Player {
                 int roundsToExplode,
                 int explosionRange) {
 
+            super(EntityType.BOMB, x, y);
+
             this.owner = owner;
-            this.x = x;
-            this.y = y;
             this.roundsToExplode = roundsToExplode;
             this.explosionRange = explosionRange;
         }
@@ -331,16 +294,8 @@ public final class Player {
             return explosionRange;
         }
 
-        public int getX() {
-            return x;
-        }
-
-        public int getY() {
-            return y;
-        }
-
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (this == o) {
                 return true;
             }
@@ -349,25 +304,20 @@ public final class Player {
                 return false;
             }
 
+            if (!super.equals(o)) {
+                return false;
+            }
+
             Bomb bomb = (Bomb) o;
             return owner == bomb.owner &&
-                    x == bomb.x &&
-                    y == bomb.y &&
                     roundsToExplode == bomb.roundsToExplode &&
                     explosionRange == bomb.explosionRange;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(owner, roundsToExplode);
         }
     }
 
     @Immutable
-    public static class Bomberman {
+    public static final class Bomberman extends Entity {
         private final int id;
-        private final int x;
-        private final int y;
         private final int bombsToPlace;
         private final int explosionRange;
 
@@ -378,9 +328,9 @@ public final class Player {
                 int bombsToPlace,
                 int explosionRange) {
 
+            super(EntityType.PLAYER, x, y);
+
             this.id = id;
-            this.x = x;
-            this.y = y;
             this.bombsToPlace = bombsToPlace;
             this.explosionRange = explosionRange;
         }
@@ -397,16 +347,8 @@ public final class Player {
             return explosionRange;
         }
 
-        public int getX() {
-            return x;
-        }
-
-        public int getY() {
-            return y;
-        }
-
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (this == o) {
                 return true;
             }
@@ -415,37 +357,60 @@ public final class Player {
                 return false;
             }
 
+            if (!super.equals(o)) {
+                return false;
+            }
+
             Bomberman bomberman = (Bomberman) o;
             return id == bomberman.id &&
-                    x == bomberman.x &&
-                    y == bomberman.y &&
                     bombsToPlace == bomberman.bombsToPlace &&
                     explosionRange == bomberman.explosionRange;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(id);
-        }
-
-        @Override
-        public String toString() {
-            return "Bomberman{" +
-                    "id=" + id +
-                    ", x=" + x +
-                    ", y=" + y +
-                    ", bombsToPlace=" + bombsToPlace +
-                    ", explosionRange=" + explosionRange +
-                    '}';
+            return Objects.hash(super.hashCode(), id);
         }
     }
 
     @Immutable
-    public static class Box {
+    public static class Entity extends Cell {
+
+        private final EntityType entityType;
+
+        public Entity(EntityType entityType, int x, int y) {
+            super(x, y);
+            this.entityType = entityType;
+        }
+
+        public EntityType getEntityType() {
+            return entityType;
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            if (!super.equals(o)) {
+                return false;
+            }
+            Entity entity = (Entity) o;
+            return entityType == entity.entityType;
+        }
+    }
+
+    @Immutable
+    public static class Cell {
         private final int x;
         private final int y;
 
-        public Box(int x, int y) {
+        public Cell(int x, int y) {
             this.x = x;
             this.y = y;
         }
@@ -458,8 +423,12 @@ public final class Player {
             return y;
         }
 
+        double squareDistTo(Cell cell) {
+            return (cell.x - x) * (cell.x - x) + (cell.y - y) * (cell.y - y);
+        }
+
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (this == o) {
                 return true;
             }
@@ -468,23 +437,19 @@ public final class Player {
                 return false;
             }
 
-            Box box = (Box) o;
-            return x == box.x &&
-                    y == box.y;
-        }
-
-        @Override
-        public String toString() {
-            return "Box{" +
-                    "x=" + x +
-                    ", y=" + y +
-                    '}';
+            Cell cell = (Cell) o;
+            return x == cell.x &&
+                    y == cell.y;
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(x, y);
         }
+    }
+
+    public enum EntityType {
+        PLAYER, BOMB, ITEM
     }
 
     public enum CellType {
