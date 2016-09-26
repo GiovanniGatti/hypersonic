@@ -237,7 +237,7 @@ public final class Player {
 
             // evaluating left X axis
             for (int j = x - 1; j > x - explosionRange; j--) {
-                if (j < 0 || grid[y][j] == CellType.BOX) { // TODO: do not ignore bombs
+                if (j < 0 || grid[y][j] != CellType.FLOOR) { // TODO: do not ignore bombs
                     break;
                 }
                 consumer.accept(j, y);
@@ -245,7 +245,7 @@ public final class Player {
 
             // evaluating right X axis
             for (int j = x + 1; j < x + explosionRange; j++) {
-                if (j > (width - 1) || grid[y][j] == CellType.BOX) {// TODO: do not ignore bombs
+                if (j > (width - 1) || grid[y][j] != CellType.FLOOR) {// TODO: do not ignore bombs
                     break;
                 }
                 consumer.accept(j, y);
@@ -253,7 +253,7 @@ public final class Player {
 
             // evaluating upper Y axis
             for (int i = y - 1; i > y - explosionRange; i--) {
-                if (i < 0 || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                if (i < 0 || grid[i][x] != CellType.FLOOR) {// TODO: do not ignore bombs
                     break;
                 }
                 consumer.accept(x, i);
@@ -261,7 +261,7 @@ public final class Player {
 
             // evaluating down Y axis
             for (int i = y + 1; i < y + explosionRange; i++) {
-                if (i > (height - 1) || grid[i][x] == CellType.BOX) {// TODO: do not ignore bombs
+                if (i > (height - 1) || grid[i][x] != CellType.FLOOR) {// TODO: do not ignore bombs
                     break;
                 }
                 consumer.accept(x, i);
