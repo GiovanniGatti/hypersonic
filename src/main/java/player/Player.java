@@ -104,6 +104,8 @@ public final class Player {
 
         private final List<Bomb> bombs;
 
+        private final List<Item> items;
+
         InputRepository(InputSupplier in) {
             this.in = in;
             this.width = in.nextInt();
@@ -119,6 +121,7 @@ public final class Player {
             this.ownerBombs = new HashMap<>();
             this.opponents = new ArrayList<>();
             this.bombs = new ArrayList<>();
+            items = new ArrayList<>();
         }
 
         @Override
@@ -130,6 +133,7 @@ public final class Player {
             opponents.clear();
             ownerBombs.clear();
             bombs.clear();
+            items.clear();
 
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
@@ -142,11 +146,11 @@ public final class Player {
                     } else {
                         this.grid[i][j] = CellType.BOX;
                         if (cell == '0') {
-                            boxes.add(new Box(ItemType.NO_ITEM, j, i));
+                            boxes.add(new Box(BoxContent.NO_ITEM, j, i));
                         } else if (cell == '1') {
-                            boxes.add(new Box(ItemType.EXTRA_RANGE, j, i));
+                            boxes.add(new Box(BoxContent.EXTRA_RANGE, j, i));
                         } else {
-                            boxes.add(new Box(ItemType.EXTRA_BOMB, j, i));
+                            boxes.add(new Box(BoxContent.EXTRA_BOMB, j, i));
                         }
                     }
                 }
@@ -169,11 +173,13 @@ public final class Player {
                     } else {
                         opponents.add(bomberman);
                     }
-                } else {
+                } else if (entityType == 1) {
                     Bomb bomb = new Bomb(owner, x, y, param1, param2);
                     ownerBombs.putIfAbsent(owner, new ArrayList<>());
                     ownerBombs.get(owner).add(bomb);
                     bombs.add(bomb);
+                } else {
+                    items.add(new Item((param1 == 1) ? ItemType.EXTRA_RANGE : ItemType.EXTRA_BOMB, x, y));
                 }
             }
 
@@ -214,6 +220,10 @@ public final class Player {
 
         public List<Box> getBoxes() {
             return boxes;
+        }
+
+        public List<Item> getItems() {
+            return items;
         }
 
         public int getRemainingRounds() {
@@ -385,21 +395,17 @@ public final class Player {
     }
 
     @Immutable
-    public static final class Box extends Cell {
+    public static final class Item extends Entity {
 
         private final ItemType itemType;
 
-        public Box(ItemType itemType, int x, int y) {
-            super(x, y);
+        public Item(ItemType itemType, int x, int y) {
+            super(EntityType.ITEM, x, y);
             this.itemType = itemType;
         }
 
         public ItemType getItemType() {
             return itemType;
-        }
-
-        Cell asCell() {
-            return new Cell(getX(), getY());
         }
 
         @Override
@@ -416,8 +422,15 @@ public final class Player {
                 return false;
             }
 
-            Box box = (Box) o;
-            return itemType == box.itemType;
+            Item item = (Item) o;
+            return itemType == item.itemType;
+        }
+
+        @Override
+        public String toString() {
+            return "Item{" +
+                    "itemType=" + itemType +
+                    "} " + super.toString();
         }
     }
 
@@ -450,6 +463,57 @@ public final class Player {
             }
             Entity entity = (Entity) o;
             return entityType == entity.entityType;
+        }
+
+        @Override
+        public String toString() {
+            return "Entity{" +
+                    "entityType=" + entityType +
+                    "} " + super.toString();
+        }
+    }
+
+    @Immutable
+    public static final class Box extends Cell {
+
+        private final BoxContent boxContent;
+
+        public Box(BoxContent boxContent, int x, int y) {
+            super(x, y);
+            this.boxContent = boxContent;
+        }
+
+        public BoxContent getBoxContent() {
+            return boxContent;
+        }
+
+        Cell asCell() {
+            return new Cell(getX(), getY());
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            if (!super.equals(o)) {
+                return false;
+            }
+
+            Box box = (Box) o;
+            return boxContent == box.boxContent;
+        }
+
+        @Override
+        public String toString() {
+            return "Box{" +
+                    "boxContent=" + boxContent +
+                    "} " + super.toString();
         }
     }
 
@@ -505,6 +569,10 @@ public final class Player {
     }
 
     public enum ItemType {
+        EXTRA_RANGE, EXTRA_BOMB
+    }
+
+    public enum BoxContent {
         NO_ITEM, EXTRA_RANGE, EXTRA_BOMB
     }
 

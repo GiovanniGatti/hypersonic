@@ -9,6 +9,8 @@ import java.util.Set;
 import player.Player.Bomb;
 import player.Player.Bomberman;
 import player.Player.InputSupplier;
+import player.Player.Item;
+import player.Player.ItemType;
 
 public class InputSupplierState {
 
@@ -17,8 +19,9 @@ public class InputSupplierState {
     private int myId;
     private String[] grid;
 
-    private Set<Bomberman> bombermans;
+    private Set<Bomberman> bombermen;
     private Set<Bomb> bombs;
+    private Set<Item> items;
 
     public InputSupplierState() {
         width = 13;
@@ -37,11 +40,12 @@ public class InputSupplierState {
         grid[9] = "...0.....0...";
         grid[10] = ".....0.0.....";
 
-        bombermans = new HashSet<>();
-        bombermans.add(new Bomberman(0, 0, 0, 1, 3));
-        bombermans.add(new Bomberman(1, 12, 10, 1, 3));
+        bombermen = new HashSet<>();
+        bombermen.add(new Bomberman(0, 0, 0, 1, 3));
+        bombermen.add(new Bomberman(1, 12, 10, 1, 3));
 
         bombs = new HashSet<>();
+        items = new HashSet<>();
     }
 
     public InputSupplierState withGrid(String... grid) {
@@ -60,14 +64,20 @@ public class InputSupplierState {
     }
 
     public InputSupplierState withBombermans(Bomberman... bombermans) {
-        this.bombermans.clear();
-        Collections.addAll(this.bombermans, bombermans);
+        this.bombermen.clear();
+        Collections.addAll(this.bombermen, bombermans);
         return this;
     }
 
     public InputSupplierState withBombs(Bomb... bombs) {
         this.bombs.clear();
         Collections.addAll(this.bombs, bombs);
+        return this;
+    }
+
+    public InputSupplierState withItems(Item... items) {
+        this.items.clear();
+        Collections.addAll(this.items, items);
         return this;
     }
 
@@ -96,9 +106,9 @@ public class InputSupplierState {
 
             Collections.addAll(stringQueue, state.grid);
 
-            intQueue.add(state.bombermans.size() + state.bombs.size());
+            intQueue.add(state.bombermen.size() + state.bombs.size() + state.items.size());
 
-            for (Bomberman bomberman : state.bombermans) {
+            for (Bomberman bomberman : state.bombermen) {
                 intQueue.add(0);
                 intQueue.add(bomberman.getId());
                 intQueue.add(bomberman.getX());
@@ -114,6 +124,15 @@ public class InputSupplierState {
                 intQueue.add(bomb.getY());
                 intQueue.add(bomb.getRoundsToExplode());
                 intQueue.add(bomb.getExplosionRange());
+            }
+
+            for (Item item : state.items) {
+                intQueue.add(2);
+                intQueue.add(0);
+                intQueue.add(item.getX());
+                intQueue.add(item.getY());
+                intQueue.add((item.getItemType() == ItemType.EXTRA_RANGE) ? 1 : 2);
+                intQueue.add(0);
             }
 
             stringQueue.add("");

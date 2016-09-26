@@ -1,11 +1,11 @@
 package player;
 
+import static player.Player.BoxContent.EXTRA_BOMB;
+import static player.Player.BoxContent.EXTRA_RANGE;
+import static player.Player.BoxContent.NO_ITEM;
 import static player.Player.CellType.BLOCK;
 import static player.Player.CellType.BOX;
 import static player.Player.CellType.FLOOR;
-import static player.Player.ItemType.EXTRA_BOMB;
-import static player.Player.ItemType.EXTRA_RANGE;
-import static player.Player.ItemType.NO_ITEM;
 
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +17,8 @@ import player.Player.Bomberman;
 import player.Player.Box;
 import player.Player.InputRepository;
 import player.Player.InputSupplier;
+import player.Player.Item;
+import player.Player.ItemType;
 
 @DisplayName("An input repository")
 class InputRepositoryTest implements WithAssertions {
@@ -135,6 +137,24 @@ class InputRepositoryTest implements WithAssertions {
                         new Box(EXTRA_RANGE, 0, 1),
                         new Box(EXTRA_BOMB, 2, 1),
                         new Box(NO_ITEM, 1, 2));
+    }
+
+    @Test
+    @DisplayName("lists all items")
+    void listsAllItems() {
+        InputSupplier inputSupplier =
+                state.withItems(
+                        new Item(ItemType.EXTRA_RANGE, 0, 1),
+                        new Item(ItemType.EXTRA_BOMB, 2, 1))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        assertThat(repository.getItems())
+                .containsOnly(
+                        new Item(ItemType.EXTRA_RANGE, 0, 1),
+                        new Item(ItemType.EXTRA_BOMB, 2, 1));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {
