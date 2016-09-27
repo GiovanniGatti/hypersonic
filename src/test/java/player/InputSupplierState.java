@@ -111,8 +111,8 @@ public class InputSupplierState {
             for (Bomberman bomberman : state.bombermen) {
                 intQueue.add(0);
                 intQueue.add(bomberman.getId());
-                intQueue.add(bomberman.getX());
-                intQueue.add(bomberman.getY());
+                intQueue.add(bomberman.getCell().getX());
+                intQueue.add(bomberman.getCell().getY());
                 intQueue.add(bomberman.getBombsToPlace());
                 intQueue.add(bomberman.getExplosionRange());
             }
@@ -120,8 +120,8 @@ public class InputSupplierState {
             for (Bomb bomb : state.bombs) {
                 intQueue.add(1);
                 intQueue.add(bomb.getOwner());
-                intQueue.add(bomb.getX());
-                intQueue.add(bomb.getY());
+                intQueue.add(bomb.getCell().getX());
+                intQueue.add(bomb.getCell().getY());
                 intQueue.add(bomb.getRoundsToExplode());
                 intQueue.add(bomb.getExplosionRange());
             }
@@ -129,8 +129,8 @@ public class InputSupplierState {
             for (Item item : state.items) {
                 intQueue.add(2);
                 intQueue.add(0);
-                intQueue.add(item.getX());
-                intQueue.add(item.getY());
+                intQueue.add(item.getCell().getX());
+                intQueue.add(item.getCell().getY());
                 intQueue.add((item.getItemType() == ItemType.EXTRA_RANGE) ? 1 : 2);
                 intQueue.add(0);
             }

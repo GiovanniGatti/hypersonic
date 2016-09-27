@@ -3,16 +3,12 @@ package player;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 import jdk.nashorn.internal.ir.annotations.Immutable;
 
@@ -23,7 +19,7 @@ public final class Player {
         InputSupplier in = new InputReader(new Scanner(System.in));
 
         InputRepository repo = new InputRepository(in);
-        AI ai = new StateMachineAI(repo);
+        AI ai = new GeneticAI(repo);
 
         while (true) {
             ai.updateRepository();
@@ -34,70 +30,19 @@ public final class Player {
         }
     }
 
-    public static class StateMachineAI extends AI {
+    public static class GeneticAI extends AI {
 
         private final InputRepository repo;
 
-        private int[][] gridEvaluation;
-
-        public StateMachineAI(InputRepository repo) {
+        public GeneticAI(InputRepository repo) {
             super(repo);
             this.repo = repo;
         }
 
         @Override
         public Action[] play() {
-            gridEvaluation = new int[repo.height][repo.width];
 
-            Bomberman player = repo.getPlayer();
-
-            int width = repo.getWidth();
-            int height = repo.getHeight();
-
-            List<Cell> boxes =
-                    repo.getBoxes().stream()
-                            .map(Box::asCell)
-                            .collect(Collectors.toCollection(ArrayList::new));
-
-            List<Cell> bombs = repo.getBombs().stream()
-                    .map(Bomb::asCell).collect(Collectors.toCollection(ArrayList::new));
-
-            Set<Cell> toDiscard = new HashSet<>();
-
-            for (Cell box : boxes) {
-                repo.acceptForExplosionRange(box, player.getExplosionRange(), (x, y) -> {
-                    if (bombs.contains(new Cell(x, y))) {
-                        toDiscard.add(box);
-                    }
-                });
-            }
-
-            boxes.removeAll(toDiscard);
-
-            for (Cell box : boxes) {
-                repo.acceptForExplosionRange(box, player.getExplosionRange(), (x, y) -> gridEvaluation[y][x]++);
-            }
-
-            List<ScoredCell> cells = new ArrayList<>();
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    if (repo.distanceTo(j, i) < Integer.MAX_VALUE) {
-                        cells.add(new ScoredCell(gridEvaluation[i][j], j, i));
-                    }
-                }
-            }
-
-            Collections.sort(cells,
-                    Comparator.comparing(ScoredCell::getScore).reversed()
-                            .thenComparing(c -> c.squareDistTo(player)));
-
-            ScoredCell target = cells.iterator().next();
-
-            if (player.getX() == target.getX() && player.getY() == target.getY()) {
-                return new Action[] { Action.bomb(target.getX(), target.getY()) };
-            }
-
-            return new Action[] { Action.move(target.getX(), target.getY()) };
+            return new Action[] { Action.move(0, 0) };
         }
     }
 
@@ -226,8 +171,6 @@ public final class Player {
                 }
             }
 
-            runFloodFillDistCalculator(player.getY(), player.getX());
-
             in.nextLine();
         }
 
@@ -280,7 +223,7 @@ public final class Player {
         }
 
         void acceptForExplosionRange(Bomb bomb, BiConsumer<Integer, Integer> consumer) {
-            acceptForExplosionRange(bomb.asCell(), bomb.getExplosionRange(), consumer);
+            acceptForExplosionRange(bomb.getCell(), bomb.getExplosionRange(), consumer);
         }
 
         void acceptForExplosionRange(Cell bomb, int range, BiConsumer<Integer, Integer> consumer) {
@@ -320,18 +263,6 @@ public final class Player {
             }
         }
 
-        boolean hitsCell(Bomb bomb, Cell cell) {
-            final int x = bomb.getX();
-            final int y = bomb.getY();
-            final int range = bomb.getExplosionRange();
-
-            if (cell.squareDistTo(bomb) > range * range) {
-                return false;
-            }
-            // TODO: finish
-            return false;
-        }
-
         private boolean hasBombAt(int x, int y) {
             return bombsAt.containsKey(new Cell(x, y));
         }
@@ -346,121 +277,6 @@ public final class Player {
 
         private boolean hasObstructionAt(int x, int y) {
             return grid[y][x] != CellType.FLOOR || hasBombAt(x, y) || hasItemAt(x, y) || hasBombermanAt(x, y);
-        }
-
-        public List<Cell> safestRouteTo(Cell target) {
-            return safestRouteTo(0, target);
-        }
-
-        private List<Cell> safestRouteTo(int round, Cell target) {
-            Cell playerCell = new Cell(player.getX(), player.getY());
-
-            if (playerCell.equals(target)) {
-                return Collections.emptyList();
-            }
-
-            int x = target.getX();
-            int y = target.getY();
-
-            Cell north = new Cell(x, y - 1);
-            List<Cell> northRoute = null;
-            if (y - 1 >= 0 && !hasObstructionAt(x, y - 1) && !cellHitByExplosionOnRound(north, round + 1)) {
-                northRoute = safestRouteTo(round + 1, north);
-            }
-
-            Cell south = new Cell(x, y + 1);
-            List<Cell> southRoute = null;
-            if (y + 1 < height && !hasObstructionAt(x, y + 1) && !cellHitByExplosionOnRound(north, round + 1)) {
-                southRoute = safestRouteTo(round + 1, south);
-            }
-
-            Cell east = new Cell(x - 1, 0);
-            List<Cell> eastRoute = null;
-            if (x - 1 >= 0 && !hasObstructionAt(x - 1, y) && !cellHitByExplosionOnRound(north, round + 1)) {
-                eastRoute = safestRouteTo(round + 1, east);
-            }
-
-            Cell west = new Cell(x + 1, 0);
-            List<Cell> westRoute = null;
-            if (x + 1 < width && !hasObstructionAt(x + 1, y) && !cellHitByExplosionOnRound(north, round + 1)) {
-                westRoute = safestRouteTo(round + 1, west);
-            }
-
-            // TODO: how to stay in place one more round?
-            return null;
-        }
-
-        private boolean cellHitByExplosionOnRound(Cell cell, int round) {
-            List<Bomb> toExplode = bombs.stream()
-                    .filter(b -> b.getRoundsToExplode() == round)
-                    .collect(Collectors.toList());
-
-            for (Bomb bomb : toExplode) {
-                if (hitsCell(bomb, cell)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public int distanceTo(int x, int y) {
-            return distTo[y][x];
-        }
-
-        private void runFloodFillDistCalculator(int i, int j) {
-            runFloodFillDistCalculator(0, new boolean[height][width], i, j);
-        }
-
-        private void runFloodFillDistCalculator(int current, boolean[][] mark, int i, int j) {
-            distTo[i][j] = current;
-            mark[i][j] = true;
-
-            if (i - 1 >= 0 && !mark[i - 1][j] && !hasBombAt(j, i - 1)) {
-                if (grid[i - 1][j] == CellType.FLOOR) {
-                    runFloodFillDistCalculator(current + 1, mark, i - 1, j);
-                } else if (grid[i - 1][j] == CellType.BOX) {
-                    targetableBoxes.add(new Cell(j, i - 1));
-                }
-            }
-
-            if (i + 1 < height && !mark[i + 1][j] && !hasBombAt(j, i + 1)) {
-                if (grid[i + 1][j] == CellType.FLOOR) {
-                    runFloodFillDistCalculator(current + 1, mark, i + 1, j);
-                } else if (grid[i + 1][j] == CellType.BOX) {
-                    targetableBoxes.add(new Cell(j, i + 1));
-                }
-            }
-
-            if (j - 1 >= 0 && !mark[i][j - 1] && !hasBombAt(j - 1, i)) {
-                if (grid[i][j - 1] == CellType.FLOOR) {
-                    runFloodFillDistCalculator(current + 1, mark, i, j - 1);
-                } else if (grid[i][j - 1] == CellType.BOX) {
-                    targetableBoxes.add(new Cell(j - 1, i));
-                }
-            }
-
-            if (j + 1 < width && !mark[i][j + 1] && !hasBombAt(j + 1, i)) {
-                if (grid[i][j + 1] == CellType.FLOOR) {
-                    runFloodFillDistCalculator(current + 1, mark, i, j + 1);
-                } else if (grid[i][j + 1] == CellType.BOX) {
-                    targetableBoxes.add(new Cell(j, i + 1));
-                }
-            }
-        }
-    }
-
-    @Immutable
-    public static final class ScoredCell extends Cell {
-        private final int score;
-
-        public ScoredCell(int score, int x, int y) {
-            super(x, y);
-            this.score = score;
-        }
-
-        public int getScore() {
-            return score;
         }
     }
 
@@ -494,10 +310,6 @@ public final class Player {
 
         public int getExplosionRange() {
             return explosionRange;
-        }
-
-        public Cell asCell() {
-            return new Cell(getX(), getY());
         }
 
         @Override
@@ -575,7 +387,7 @@ public final class Player {
 
         @Override
         public int hashCode() {
-            return Objects.hash(super.hashCode(), id);
+            return Objects.hash(id, bombsToPlace, explosionRange);
         }
     }
 
@@ -620,12 +432,13 @@ public final class Player {
     }
 
     @Immutable
-    public static class Entity extends Cell {
+    public static class Entity {
 
+        private final Cell cell;
         private final EntityType entityType;
 
         public Entity(EntityType entityType, int x, int y) {
-            super(x, y);
+            this.cell = new Cell(x, y);
             this.entityType = entityType;
         }
 
@@ -633,6 +446,10 @@ public final class Player {
             return entityType;
         }
 
+        public Cell getCell() {
+            return cell;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -643,28 +460,33 @@ public final class Player {
                 return false;
             }
 
-            if (!super.equals(o)) {
-                return false;
-            }
             Entity entity = (Entity) o;
-            return entityType == entity.entityType;
+            return Objects.equals(cell, entity.cell) &&
+                    entityType == entity.entityType;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(cell, entityType);
         }
 
         @Override
         public String toString() {
-            return "Entity{" +
-                    "entityType=" + entityType +
-                    "} " + super.toString();
+            return com.google.common.base.Objects.toStringHelper(this)
+                    .add("cell", cell)
+                    .add("entityType", entityType)
+                    .toString();
         }
     }
 
     @Immutable
-    public static final class Box extends Cell {
+    public static final class Box {
 
         private final BoxContent boxContent;
+        private final Cell cell;
 
         public Box(BoxContent boxContent, int x, int y) {
-            super(x, y);
+            this.cell = new Cell(x, y);
             this.boxContent = boxContent;
         }
 
@@ -672,8 +494,8 @@ public final class Player {
             return boxContent;
         }
 
-        Cell asCell() {
-            return new Cell(getX(), getY());
+        public Cell getCell() {
+            return cell;
         }
 
         @Override
@@ -686,19 +508,23 @@ public final class Player {
                 return false;
             }
 
-            if (!super.equals(o)) {
-                return false;
-            }
-
             Box box = (Box) o;
-            return boxContent == box.boxContent;
+            return boxContent == box.boxContent &&
+                    Objects.equals(cell, box.cell);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(boxContent, cell);
         }
 
         @Override
         public String toString() {
-            return "Box{" +
-                    "boxContent=" + boxContent +
-                    "} " + super.toString();
+            final StringBuilder sb = new StringBuilder("Box{");
+            sb.append("boxContent=").append(boxContent);
+            sb.append(", cell=").append(cell);
+            sb.append('}');
+            return sb.toString();
         }
     }
 
