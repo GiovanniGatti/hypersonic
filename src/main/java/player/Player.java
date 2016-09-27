@@ -65,7 +65,7 @@ public final class Player {
             Set<Cell> toDiscard = new HashSet<>();
 
             for (Cell box : boxes) {
-                repo.acceptForExplosionRange(box, (x, y) -> {
+                repo.acceptForExplosionRange(box, player.getExplosionRange(), (x, y) -> {
                     if (bombs.contains(new Cell(x, y))) {
                         toDiscard.add(box);
                     }
@@ -75,7 +75,7 @@ public final class Player {
             boxes.removeAll(toDiscard);
 
             for (Cell box : boxes) {
-                repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
+                repo.acceptForExplosionRange(box, player.getExplosionRange(), (x, y) -> gridEvaluation[y][x]++);
             }
 
             List<ScoredCell> cells = new ArrayList<>();
@@ -124,7 +124,9 @@ public final class Player {
 
         private final int[][] distTo;
 
-        private final HashMap<Cell, Bomb> bombsAt;
+        private final Map<Cell, Bomb> bombsAt;
+        private final Map<Cell, Item> itemsAt;
+        private final Map<Cell, Bomberman> bombermenAt;
 
         private final List<Cell> targetableBoxes;
 
@@ -152,6 +154,8 @@ public final class Player {
 
             this.bombsAt = new HashMap<>();
             this.targetableBoxes = new ArrayList<>();
+            this.itemsAt = new HashMap<>();
+            this.bombermenAt = new HashMap<>();
         }
 
         @Override
@@ -166,6 +170,8 @@ public final class Player {
             items.clear();
             bombsAt.clear();
             targetableBoxes.clear();
+            itemsAt.clear();
+            bombermenAt.clear();
 
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
@@ -205,6 +211,8 @@ public final class Player {
                     } else {
                         opponents.add(bomberman);
                     }
+
+                    bombermenAt.put(new Cell(x, y), bomberman);
                 } else if (entityType == 1) {
                     Bomb bomb = new Bomb(owner, x, y, param1, param2);
                     ownerBombs.putIfAbsent(owner, new ArrayList<>());
@@ -212,7 +220,9 @@ public final class Player {
                     bombs.add(bomb);
                     bombsAt.put(new Cell(x, y), bomb);
                 } else {
-                    items.add(new Item((param1 == 1) ? ItemType.EXTRA_RANGE : ItemType.EXTRA_BOMB, x, y));
+                    Item item = new Item((param1 == 1) ? ItemType.EXTRA_RANGE : ItemType.EXTRA_BOMB, x, y);
+                    items.add(item);
+                    itemsAt.put(new Cell(x, y), item);
                 }
             }
 
@@ -269,38 +279,41 @@ public final class Player {
             return targetableBoxes;
         }
 
-        void acceptForExplosionRange(Cell cell, BiConsumer<Integer, Integer> consumer) {
-            final int x = cell.getX();
-            final int y = cell.getY();
-            final int explosionRange = player.getExplosionRange();
+        void acceptForExplosionRange(Bomb bomb, BiConsumer<Integer, Integer> consumer) {
+            acceptForExplosionRange(bomb.asCell(), bomb.getExplosionRange(), consumer);
+        }
+
+        void acceptForExplosionRange(Cell bomb, int range, BiConsumer<Integer, Integer> consumer) {
+            final int x = bomb.getX();
+            final int y = bomb.getY();
 
             // evaluating left X axis
-            for (int j = x - 1; j > x - explosionRange; j--) {
-                if (j < 0 || grid[y][j] != CellType.FLOOR) { // TODO: do not ignore bombs
+            for (int j = x - 1; j > x - range; j--) {
+                if (j < 0 || hasObstructionAt(j, y)) {
                     break;
                 }
                 consumer.accept(j, y);
             }
 
             // evaluating right X axis
-            for (int j = x + 1; j < x + explosionRange; j++) {
-                if (j > (width - 1) || grid[y][j] != CellType.FLOOR) {// TODO: do not ignore bombs
+            for (int j = x + 1; j < x + range; j++) {
+                if (j > (width - 1) || hasObstructionAt(j, y)) {
                     break;
                 }
                 consumer.accept(j, y);
             }
 
             // evaluating upper Y axis
-            for (int i = y - 1; i > y - explosionRange; i--) {
-                if (i < 0 || grid[i][x] != CellType.FLOOR) {// TODO: do not ignore bombs
+            for (int i = y - 1; i > y - range; i--) {
+                if (i < 0 || hasObstructionAt(x, i)) {
                     break;
                 }
                 consumer.accept(x, i);
             }
 
             // evaluating down Y axis
-            for (int i = y + 1; i < y + explosionRange; i++) {
-                if (i > (height - 1) || grid[i][x] != CellType.FLOOR) {// TODO: do not ignore bombs
+            for (int i = y + 1; i < y + range; i++) {
+                if (i > (height - 1) || hasObstructionAt(x, i)) {
                     break;
                 }
                 consumer.accept(x, i);
@@ -309,6 +322,18 @@ public final class Player {
 
         private boolean hasBombAt(int x, int y) {
             return bombsAt.containsKey(new Cell(x, y));
+        }
+
+        private boolean hasItemAt(int x, int y) {
+            return itemsAt.containsKey(new Cell(x, y));
+        }
+
+        private boolean hasBombermanAt(int x, int y) {
+            return bombermenAt.containsKey(new Cell(x, y));
+        }
+
+        private boolean hasObstructionAt(int x, int y) {
+            return grid[y][x] != CellType.FLOOR || hasBombAt(x, y) || hasItemAt(x, y) || hasBombermanAt(x, y);
         }
 
         public int distanceTo(int x, int y) {

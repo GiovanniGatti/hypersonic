@@ -211,7 +211,7 @@ class InputRepositoryTest implements WithAssertions {
         repository.update();
 
         List<Cell> cells = new ArrayList<>();
-        repository.acceptForExplosionRange(new Cell(1, 1), (x, y) -> cells.add(new Cell(x, y)));
+        repository.acceptForExplosionRange(new Cell(1, 1), 3, (x, y) -> cells.add(new Cell(x, y)));
 
         assertThat(cells)
                 .containsOnly(new Cell(1, 0), new Cell(0, 1), new Cell(1, 2));
@@ -246,7 +246,7 @@ class InputRepositoryTest implements WithAssertions {
         Set<Cell> toDiscard = new HashSet<>();
 
         for (Cell box : boxes) {
-            repo.acceptForExplosionRange(box, (x, y) -> {
+            repo.acceptForExplosionRange(box, 3, (x, y) -> {
                 if (bombs.contains(new Cell(x, y))) {
                     toDiscard.add(box);
                 }
@@ -257,11 +257,11 @@ class InputRepositoryTest implements WithAssertions {
 
         int[][] gridEvaluation = new int[repo.getHeight()][repo.getWidth()];
         for (Cell box : boxes) {
-            repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
+            repo.acceptForExplosionRange(box, 3, (x, y) -> gridEvaluation[y][x]++);
         }
 
         List<Cell> cells = new ArrayList<>();
-        repo.acceptForExplosionRange(new Cell(2, 0), (x, y) -> cells.add(new Cell(x, y)));
+        repo.acceptForExplosionRange(new Cell(2, 0), 3, (x, y) -> cells.add(new Cell(x, y)));
 
         assertThat(cells)
                 .containsOnly(new Cell(0, 0), new Cell(1, 0));
@@ -300,6 +300,162 @@ class InputRepositoryTest implements WithAssertions {
 
         assertThat(repository.getTargetableBoxes())
                 .containsOnly(new Cell(8, 10), new Cell(10, 9), new Cell(12, 8));
+    }
+
+    @Test
+    @DisplayName("simulates an explosion without obstruction")
+    void explosionGoesWithoutObstruction() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........")
+                        .withMyId(0)
+                        .withBombermans(new Bomberman(0, 0, 0, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> collected = new ArrayList<>();
+
+        repository.acceptForExplosionRange(new Cell(3, 3), 3, (x, y) -> collected.add(new Cell(x, y)));
+
+        assertThat(collected).containsOnly(
+                new Cell(1, 3), new Cell(2, 3),
+                new Cell(4, 3), new Cell(5, 3),
+                new Cell(3, 2), new Cell(3, 1),
+                new Cell(3, 4), new Cell(3, 5));
+    }
+
+    @Test
+    @DisplayName("simulates an explosion with a box obstructing")
+    void explosionGoesWithBoxObstruction() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".........",
+                        ".........",
+                        "...0.....",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........")
+                        .withMyId(0)
+                        .withBombermans(new Bomberman(0, 0, 0, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> collected = new ArrayList<>();
+
+        repository.acceptForExplosionRange(new Cell(3, 3), 3, (x, y) -> collected.add(new Cell(x, y)));
+
+        assertThat(collected).containsOnly(
+                new Cell(1, 3), new Cell(2, 3),
+                new Cell(4, 3), new Cell(5, 3),
+                new Cell(3, 4), new Cell(3, 5));
+    }
+
+    @Test
+    @DisplayName("simulates an explosion with an wall obstructing")
+    void explosionGoesWithWallObstruction() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".........",
+                        ".........",
+                        ".........",
+                        "..X......",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........")
+                        .withMyId(0)
+                        .withBombermans(new Bomberman(0, 0, 0, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> collected = new ArrayList<>();
+
+        repository.acceptForExplosionRange(new Cell(3, 3), 3, (x, y) -> collected.add(new Cell(x, y)));
+
+        assertThat(collected).containsOnly(
+                new Cell(4, 3), new Cell(5, 3),
+                new Cell(3, 2), new Cell(3, 1),
+                new Cell(3, 4), new Cell(3, 5));
+    }
+
+    @Test
+    @DisplayName("simulates an explosion with a player obstructing")
+    void explosionGoesWithPlayerObstruction() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........")
+                        .withMyId(0)
+                        .withBombermans(new Bomberman(0, 4, 3, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> collected = new ArrayList<>();
+
+        repository.acceptForExplosionRange(new Cell(3, 3), 3, (x, y) -> collected.add(new Cell(x, y)));
+
+        assertThat(collected).containsOnly(
+                new Cell(1, 3), new Cell(2, 3),
+                new Cell(3, 2), new Cell(3, 1),
+                new Cell(3, 4), new Cell(3, 5));
+    }
+
+    @Test
+    @DisplayName("simulates an explosion with an item obstructing")
+    void explosionGoesWithItemObstruction() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........",
+                        ".........")
+                        .withMyId(0)
+                        .withItems(new Item(ItemType.EXTRA_BOMB, 3, 4))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> collected = new ArrayList<>();
+
+        repository.acceptForExplosionRange(new Cell(3, 3), 3, (x, y) -> collected.add(new Cell(x, y)));
+
+        assertThat(collected).containsOnly(
+                new Cell(1, 3), new Cell(2, 3),
+                new Cell(4, 3), new Cell(5, 3),
+                new Cell(3, 2), new Cell(3, 1));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {
