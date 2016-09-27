@@ -7,6 +7,12 @@ import static player.Player.CellType.BLOCK;
 import static player.Player.CellType.BOX;
 import static player.Player.CellType.FLOOR;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import player.Player.Bomb;
 import player.Player.Bomberman;
 import player.Player.Box;
+import player.Player.Cell;
 import player.Player.InputRepository;
 import player.Player.InputSupplier;
 import player.Player.Item;
@@ -188,6 +195,76 @@ class InputRepositoryTest implements WithAssertions {
         assertThat(repository.distanceTo(3, 0)).isEqualTo(3);
         assertThat(repository.distanceTo(3, 1)).isEqualTo(Integer.MAX_VALUE);
         assertThat(repository.distanceTo(3, 2)).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    @DisplayName("compute the correct explosion range when blocked by box")
+    void computeExplosionRange() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        "....",
+                        ".1X.",
+                        "....")
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        List<Cell> cells = new ArrayList<>();
+        repository.acceptForExplosionRange(new Cell(1, 1), (x, y) -> cells.add(new Cell(x, y)));
+
+        assertThat(cells)
+                .containsOnly(new Cell(1, 0), new Cell(0, 1), new Cell(1, 2));
+    }
+
+    @Test
+    @DisplayName("compute the correct explosion range (generic case)")
+    void computeExplosionRange2() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        "...0",
+                        ".X1X",
+                        ".2..",
+                        ".X.X",
+                        "0102")
+                        .withMyId(0)
+                        .withBombs(new Bomb(0, 2, 0, 8, 3))
+                        .withBombermans(new Bomberman(0, 2, 0, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repo = new InputRepository(inputSupplier);
+        repo.update();
+
+        List<Cell> boxes =
+                repo.getBoxes().stream()
+                        .map(Box::asCell)
+                        .collect(Collectors.toCollection(ArrayList::new));
+
+        List<Cell> bombs = repo.getBombs().stream()
+                .map(Bomb::asCell).collect(Collectors.toCollection(ArrayList::new));
+
+        Set<Cell> toDiscard = new HashSet<>();
+
+        for (Cell box : boxes) {
+            repo.acceptForExplosionRange(box, (x, y) -> {
+                if (bombs.contains(new Cell(x, y))) {
+                    toDiscard.add(box);
+                }
+            });
+        }
+
+        boxes.removeAll(toDiscard);
+
+        int[][]gridEvaluation = new int[repo.getHeight()][repo.getWidth()];
+        for (Cell box : boxes) {
+            repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
+        }
+
+        List<Cell> cells = new ArrayList<>();
+        repo.acceptForExplosionRange(new Cell(2, 0), (x, y) -> cells.add(new Cell(x, y)));
+
+        assertThat(cells)
+                .containsOnly(new Cell(0, 0), new Cell(1, 0));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {

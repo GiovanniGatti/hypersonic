@@ -5,10 +5,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -57,9 +59,20 @@ public final class Player {
                             .map(Box::asCell)
                             .collect(Collectors.toCollection(ArrayList::new));
 
-            for (Bomb bomb : repo.getBombs()) {
-                repo.acceptForExplosionRange(bomb, (x, y) -> boxes.remove(new Cell(x, y)));
+            List<Cell> bombs = repo.getBombs().stream()
+                    .map(Bomb::asCell).collect(Collectors.toCollection(ArrayList::new));
+
+            Set<Cell> toDiscard = new HashSet<>();
+
+            for (Cell box : boxes) {
+                repo.acceptForExplosionRange(box, (x, y) -> {
+                    if (bombs.contains(new Cell(x, y))) {
+                        toDiscard.add(box);
+                    }
+                });
             }
+
+            boxes.removeAll(toDiscard);
 
             for (Cell box : boxes) {
                 repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
@@ -76,7 +89,7 @@ public final class Player {
 
             Collections.sort(cells,
                     Comparator.comparing(ScoredCell::getScore).reversed()
-                            .thenComparing(c -> repo.distanceTo(c.getX(), c.getY())));
+                            .thenComparing(c -> c.squareDistTo(player)));
 
             ScoredCell target = cells.iterator().next();
 
@@ -395,6 +408,10 @@ public final class Player {
 
         public int getExplosionRange() {
             return explosionRange;
+        }
+
+        public Cell asCell() {
+            return new Cell(getX(), getY());
         }
 
         @Override
