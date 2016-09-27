@@ -126,6 +126,8 @@ public final class Player {
 
         private final HashMap<Cell, Bomb> bombsAt;
 
+        private final List<Cell> targetableBoxes;
+
         InputRepository(InputSupplier in) {
             this.in = in;
             this.width = in.nextInt();
@@ -149,6 +151,7 @@ public final class Player {
             }
 
             this.bombsAt = new HashMap<>();
+            this.targetableBoxes = new ArrayList<>();
         }
 
         @Override
@@ -162,6 +165,7 @@ public final class Player {
             bombs.clear();
             items.clear();
             bombsAt.clear();
+            targetableBoxes.clear();
 
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
@@ -212,7 +216,7 @@ public final class Player {
                 }
             }
 
-            runFloodFillDistCalculator(player.getX(), player.getY());
+            runFloodFillDistCalculator(player.getY(), player.getX());
 
             in.nextLine();
         }
@@ -259,6 +263,10 @@ public final class Player {
 
         public int getRemainingRounds() {
             return remainingRounds;
+        }
+
+        public List<Cell> getTargetableBoxes() {
+            return targetableBoxes;
         }
 
         void acceptForExplosionRange(Cell cell, BiConsumer<Integer, Integer> consumer) {
@@ -308,59 +316,44 @@ public final class Player {
         }
 
         private void runFloodFillDistCalculator(int i, int j) {
-            boolean[][] mark = new boolean[distTo.length][distTo[0].length];
-            distTo[i][j] = 0;
-            mark[i][j] = true;
-            runFloodFillDistCalculator(mark, i - 1, j);
-            runFloodFillDistCalculator(mark, i + 1, j);
-            runFloodFillDistCalculator(mark, i, j - 1);
-            runFloodFillDistCalculator(mark, i, j + 1);
+            runFloodFillDistCalculator(0, new boolean[height][width], i, j);
         }
 
-        private void runFloodFillDistCalculator(boolean[][] mark, int i, int j) {
-            if (i < 0 || j < 0 || i >= distTo.length || j >= distTo[0].length) {
-                return;
-            }
-
-            if (mark[i][j]) {
-                return;
-            }
-
+        private void runFloodFillDistCalculator(int current, boolean[][] mark, int i, int j) {
+            distTo[i][j] = current;
             mark[i][j] = true;
-            int c1 = Integer.MAX_VALUE;
-            int c2 = Integer.MAX_VALUE;
-            int c3 = Integer.MAX_VALUE;
-            int c4 = Integer.MAX_VALUE;
 
-            if (i > 0 && grid[i - 1][j] == CellType.FLOOR && !hasBombAt(j, i - 1)) {
-                c1 = distTo[i - 1][j];
+            if (i - 1 >= 0 && !mark[i - 1][j] && !hasBombAt(j, i - 1)) {
+                if (grid[i - 1][j] == CellType.FLOOR) {
+                    runFloodFillDistCalculator(current + 1, mark, i - 1, j);
+                } else if (grid[i - 1][j] == CellType.BOX) {
+                    targetableBoxes.add(new Cell(j, i - 1));
+                }
             }
 
-            if (i + 1 < distTo.length && grid[i + 1][j] == CellType.FLOOR && !hasBombAt(j, i + 1)) {
-                c2 = distTo[i + 1][j];
+            if (i + 1 < height && !mark[i + 1][j] && !hasBombAt(j, i + 1)) {
+                if (grid[i + 1][j] == CellType.FLOOR) {
+                    runFloodFillDistCalculator(current + 1, mark, i + 1, j);
+                } else if (grid[i + 1][j] == CellType.BOX) {
+                    targetableBoxes.add(new Cell(j, i + 1));
+                }
             }
 
-            if (j > 0 && grid[i][j - 1] == CellType.FLOOR && !hasBombAt(j - 1, i)) {
-                c3 = distTo[i][j - 1];
+            if (j - 1 >= 0 && !mark[i][j - 1] && !hasBombAt(j - 1, i)) {
+                if (grid[i][j - 1] == CellType.FLOOR) {
+                    runFloodFillDistCalculator(current + 1, mark, i, j - 1);
+                } else if (grid[i][j - 1] == CellType.BOX) {
+                    targetableBoxes.add(new Cell(j - 1, i));
+                }
             }
 
-            if (j + 1 < distTo.length && grid[i][j + 1] == CellType.FLOOR && !hasBombAt(j + 1, i)) {
-                c4 = distTo[i][j + 1];
+            if (j + 1 < width && !mark[i][j + 1] && !hasBombAt(j + 1, i)) {
+                if (grid[i][j + 1] == CellType.FLOOR) {
+                    runFloodFillDistCalculator(current + 1, mark, i, j + 1);
+                } else if (grid[i][j + 1] == CellType.BOX) {
+                    targetableBoxes.add(new Cell(j, i + 1));
+                }
             }
-
-            distTo[i][j] = saturatedPlus1(Math.min(Math.min(Math.min(c1, c2), c3), c4));
-
-            runFloodFillDistCalculator(mark, i - 1, j);
-            runFloodFillDistCalculator(mark, i + 1, j);
-            runFloodFillDistCalculator(mark, i, j - 1);
-            runFloodFillDistCalculator(mark, i, j + 1);
-        }
-
-        private static int saturatedPlus1(int v) {
-            if (v == Integer.MAX_VALUE) {
-                return Integer.MAX_VALUE;
-            }
-            return v + 1;
         }
     }
 

@@ -174,7 +174,7 @@ class InputRepositoryTest implements WithAssertions {
                         "1..1")
                         .withMyId(0)
                         .withBombermans(anyBombermanWith(0, 0, 0), anyBombermanWith(1, 2, 2))
-                        .withBombs(anyBombAt(0, 3))
+                        .withBombs(anyBombAt(3, 0))
                         .toInputSupplier();
 
         InputRepository repository = new InputRepository(inputSupplier);
@@ -182,17 +182,17 @@ class InputRepositoryTest implements WithAssertions {
 
         assertThat(repository.distanceTo(0, 0)).isEqualTo(0);
         assertThat(repository.distanceTo(0, 1)).isEqualTo(1);
-        assertThat(repository.distanceTo(0, 2)).isEqualTo(2);
+        assertThat(repository.distanceTo(0, 2)).isEqualTo(Integer.MAX_VALUE);
 
         assertThat(repository.distanceTo(1, 0)).isEqualTo(1);
-        assertThat(repository.distanceTo(1, 1)).isEqualTo(2);
+        assertThat(repository.distanceTo(1, 1)).isEqualTo(Integer.MAX_VALUE);
         assertThat(repository.distanceTo(1, 2)).isEqualTo(Integer.MAX_VALUE);
 
         assertThat(repository.distanceTo(2, 0)).isEqualTo(2);
-        assertThat(repository.distanceTo(2, 1)).isEqualTo(3);
+        assertThat(repository.distanceTo(2, 1)).isEqualTo(Integer.MAX_VALUE);
         assertThat(repository.distanceTo(2, 2)).isEqualTo(Integer.MAX_VALUE);
 
-        assertThat(repository.distanceTo(3, 0)).isEqualTo(3);
+        assertThat(repository.distanceTo(3, 0)).isEqualTo(Integer.MAX_VALUE);
         assertThat(repository.distanceTo(3, 1)).isEqualTo(Integer.MAX_VALUE);
         assertThat(repository.distanceTo(3, 2)).isEqualTo(Integer.MAX_VALUE);
     }
@@ -255,7 +255,7 @@ class InputRepositoryTest implements WithAssertions {
 
         boxes.removeAll(toDiscard);
 
-        int[][]gridEvaluation = new int[repo.getHeight()][repo.getWidth()];
+        int[][] gridEvaluation = new int[repo.getHeight()][repo.getWidth()];
         for (Cell box : boxes) {
             repo.acceptForExplosionRange(box, (x, y) -> gridEvaluation[y][x]++);
         }
@@ -265,6 +265,41 @@ class InputRepositoryTest implements WithAssertions {
 
         assertThat(cells)
                 .containsOnly(new Cell(0, 0), new Cell(1, 0));
+    }
+
+    @Test
+    @DisplayName("compute flood fill successfully")
+    void computeFloodFill() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        "....2...2....",
+                        ".X1X0X.X0X1X.",
+                        "1.0.2...2.0.1",
+                        ".X.X.X.X.X.X.",
+                        ".1.0.2.2.0.1.",
+                        ".X.X1X.X1X.X.",
+                        ".1.0.2.2.0.1.",
+                        ".X.X.X.X.X.X.",
+                        "1.0.2...2.0.1",
+                        ".X1X0X.X0X1X.",
+                        "....2...2....")
+                        .withBombermans(new Bomberman(0, 12, 10, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+
+        assertThat(repository.distanceTo(12, 10)).isEqualTo(0);
+        assertThat(repository.distanceTo(12, 9)).isEqualTo(1);
+        assertThat(repository.distanceTo(12, 8)).isEqualTo(Integer.MAX_VALUE);
+        assertThat(repository.distanceTo(12, 7)).isEqualTo(Integer.MAX_VALUE);
+
+        assertThat(repository.distanceTo(9, 10)).isEqualTo(3);
+        assertThat(repository.distanceTo(8, 10)).isEqualTo(Integer.MAX_VALUE);
+        assertThat(repository.distanceTo(7, 10)).isEqualTo(Integer.MAX_VALUE);
+
+        assertThat(repository.getTargetableBoxes())
+                .containsOnly(new Cell(8, 10), new Cell(10, 9), new Cell(12, 8));
     }
 
     private static Bomberman anyBombermanWith(int id, int x, int y) {
