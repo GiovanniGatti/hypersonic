@@ -1,5 +1,6 @@
 package player;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -7,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
 
@@ -43,6 +45,324 @@ public final class Player {
         public Action[] play() {
 
             return new Action[] { Action.move(0, 0) };
+        }
+    }
+
+    public static final class HypersonicGameEngine {
+
+        private final int height;
+        private final int width;
+
+        private final CellType[][] grid;
+        private final List<Bomb> bombs;
+        private final List<Item> items;
+        private final Bomberman[] bombermen;
+        private final boolean[] deadBombermen;
+
+        private final Item[][] itemsGrid;
+        private final Bomb[][] bombsGrid;
+
+        /**
+         * Builder with initial state
+         */
+        public HypersonicGameEngine(
+                CellType[][] grid,
+                Bomb[] bombs,
+                Item[] items,
+                Bomberman[] bombermen) {
+
+            this.height = grid.length;
+            this.width = grid[0].length;
+            this.itemsGrid = new Item[height][width];
+            this.bombsGrid = new Bomb[height][width];
+
+            this.grid = grid;
+            this.bombs = new ArrayList<>(bombs.length);
+
+            for (Bomb bomb : bombs) {
+                Bomb copy = new Bomb(bomb);
+                this.bombs.add(copy);
+
+                int x = bomb.getCell().getX();
+                int y = bomb.getCell().getY();
+                this.bombsGrid[y][x] = copy;
+            }
+
+            this.items = new ArrayList<>(items.length);
+            for (Item item : items) {
+                this.items.add(item);
+
+                int x = item.getCell().getX();
+                int y = item.getCell().getY();
+                this.itemsGrid[y][x] = item;
+            }
+
+            this.bombermen = bombermen;
+            for (int i = 0; i < bombermen.length; i++) {
+                this.bombermen[i] = new Bomberman(bombermen[i]);
+            }
+
+            this.deadBombermen = new boolean[bombermen.length];
+        }
+
+        public void perform(SimplifiedAction... actions) {
+            perform(false, actions);
+        }
+
+        public void perform(boolean relaxed, SimplifiedAction... actions) {
+            if (actions.length != bombermen.length) {
+                throw new IllegalStateException("Expected " + bombermen.length + " actions, but found " + actions);
+            }
+
+            List<Cell> boxesToDestroy = new ArrayList<>();
+            List<Cell> itemsToDestroy = new ArrayList<>();
+
+            Queue<Bomb> toEvaluate = new ArrayDeque<>(bombs);
+
+            for (Bomb bomb = toEvaluate.poll(); bomb != null; bomb = toEvaluate.poll()) {
+
+                if (bomb.decrementRoundsToExplode() <= 0) {
+                    int x = bomb.getCell().getX();
+                    int y = bomb.getCell().getY();
+                    int range = bomb.getExplosionRange();
+
+                    int owner = bomb.getOwner();
+                    // if hits any bomberman, he dies
+                    for (Bomberman bomberman : bombermen) {
+                        if (owner == bomberman.getId()) {
+                            bomberman.incrementBombsToPlace();
+                        }
+
+                        if (bomberman.getCell().getX() == x) {
+                            if (Math.abs(bomberman.getCell().getY() - y) <= range) {
+                                deadBombermen[bomberman.getId()] = true;
+                            }
+                        } else if (bomberman.getCell().getY() == y) {
+                            if (Math.abs(bomberman.getCell().getX() - x) <= range) {
+                                deadBombermen[bomberman.getId()] = true;
+                            }
+                        }
+                    }
+
+                    // evaluating east
+                    for (int j = x - 1; j > x - range; j--) {
+                        if (j < 0 || grid[y][j] == CellType.BLOCK) {
+                            break;
+                        }
+
+                        if (grid[y][j] == CellType.BOX_WITH_NO_ITEM
+                                || grid[y][j] == CellType.BOX_WITH_EXTRA_BOMB
+                                || grid[y][j] == CellType.BOX_WITH_EXTRA_RANGE) {
+                            boxesToDestroy.add(new Cell(j, y));
+                            break;
+                        }
+
+                        if (itemsGrid[y][j] != null) {
+                            itemsToDestroy.add(new Cell(j, y));
+                            break;
+                        }
+
+                        // bombs are detonated in chain
+                        if (bombsGrid[y][j] != null) {
+                            bombsGrid[y][j].setRoundsToExplode(1);
+                            toEvaluate.add(bombsGrid[y][j]);
+                        }
+                    }
+
+                    // evaluating west
+                    for (int j = x + 1; j < x + range; j++) {
+                        if (j > (width - 1) || grid[y][j] == CellType.BLOCK) {
+                            break;
+                        }
+
+                        if (grid[y][j] == CellType.BOX_WITH_NO_ITEM
+                                || grid[y][j] == CellType.BOX_WITH_EXTRA_BOMB
+                                || grid[y][j] == CellType.BOX_WITH_EXTRA_RANGE) {
+                            boxesToDestroy.add(new Cell(j, y));
+                            break;
+                        }
+
+                        if (itemsGrid[y][j] != null) {
+                            itemsToDestroy.add(new Cell(j, y));
+                            break;
+                        }
+
+                        // bombs are detonated in chain
+                        if (bombsGrid[y][j] != null) {
+                            bombsGrid[y][j].setRoundsToExplode(1);
+                            toEvaluate.add(bombsGrid[y][j]);
+                        }
+                    }
+
+                    // evaluating north
+                    for (int i = y - 1; i > y - range; i--) {
+                        if (i < 0 || grid[i][x] == CellType.BLOCK) {
+                            break;
+                        }
+
+                        if (grid[i][x] == CellType.BOX_WITH_NO_ITEM
+                                || grid[i][x] == CellType.BOX_WITH_EXTRA_BOMB
+                                || grid[i][x] == CellType.BOX_WITH_EXTRA_RANGE) {
+                            boxesToDestroy.add(new Cell(x, i));
+                            break;
+                        }
+
+                        if (itemsGrid[i][x] != null) {
+                            itemsToDestroy.add(new Cell(x, i));
+                            break;
+                        }
+
+                        // bombs are detonated in chain
+                        if (bombsGrid[i][x] != null) {
+                            bombsGrid[i][x].setRoundsToExplode(1);
+                            toEvaluate.add(bombsGrid[i][x]);
+                        }
+                    }
+
+                    // evaluating down Y axis
+                    for (int i = y + 1; i < y + range; i++) {
+                        if (i > (height - 1) || grid[i][x] == CellType.BLOCK) {
+                            break;
+                        }
+                        if (grid[i][x] == CellType.BOX_WITH_NO_ITEM
+                                || grid[i][x] == CellType.BOX_WITH_EXTRA_BOMB
+                                || grid[i][x] == CellType.BOX_WITH_EXTRA_RANGE) {
+                            boxesToDestroy.add(new Cell(x, i));
+                            break;
+                        }
+
+                        if (itemsGrid[i][x] != null) {
+                            itemsToDestroy.add(new Cell(x, i));
+                            break;
+                        }
+
+                        // bombs are detonated in chain
+                        if (bombsGrid[i][x] != null) {
+                            bombsGrid[i][x].setRoundsToExplode(1);
+                            toEvaluate.add(bombsGrid[i][x]);
+                        }
+                    }
+
+                    bombs.remove(bomb);
+                    bombsGrid[y][x] = null;
+                }
+
+                for (Cell item : itemsToDestroy) {
+                    int x = item.getX();
+                    int y = item.getY();
+                    items.remove(itemsGrid[y][x]);
+                    itemsGrid[y][x] = null;
+                }
+
+                for (Cell box : boxesToDestroy) {
+                    int x = box.getX();
+                    int y = box.getY();
+
+                    if (grid[y][x] == CellType.BOX_WITH_EXTRA_BOMB) {
+                        Item item = new Item(ItemType.EXTRA_BOMB, x, y);
+                        items.add(item);
+                        itemsGrid[y][x] = item;
+                    } else if (grid[y][x] == CellType.BOX_WITH_EXTRA_RANGE) {
+                        Item item = new Item(ItemType.EXTRA_RANGE, x, y);
+                        items.add(item);
+                        itemsGrid[y][x] = item;
+                    }
+
+                    grid[y][x] = CellType.FLOOR;
+                }
+            }
+
+            for (Bomberman bomberman : bombermen) {
+                int id = bomberman.getId();
+                if (!deadBombermen[id] || relaxed) {
+
+                    int x = bomberman.getCell().getX();
+                    int y = bomberman.getCell().getY();
+
+                    SimplifiedAction action = actions[id];
+
+                    switch (action) {
+                    case BOMB_AND_MOVE_UP:
+                        placeBomb(bomberman);
+                    case MOVE_UP:
+                        moveTo(bomberman, x, y - 1);
+                        break;
+                    case BOMB_AND_MOVE_DOWN:
+                        placeBomb(bomberman);
+                    case MOVE_DOWN:
+                        moveTo(bomberman, x, y + 1);
+                        break;
+                    case BOMB_AND_MOVE_LEFT:
+                        placeBomb(bomberman);
+                    case MOVE_LEFT:
+                        moveTo(bomberman, x - 1, y);
+                        break;
+                    case BOMB_AND_MOVE_RIGHT:
+                        placeBomb(bomberman);
+                    case MOVE_RIGHT:
+                        moveTo(bomberman, x + 1, y);
+                        break;
+                    case BOMB_AND_STAY:
+                        placeBomb(bomberman);
+                    case STAY:
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void placeBomb(Bomberman bomberman) {
+            int id = bomberman.getId();
+            int x = bomberman.getCell().getX();
+            int y = bomberman.getCell().getY();
+
+            if (bomberman.getBombsToPlace() > 0) {
+                Bomb bomb = new Bomb(id, x, y, 8, bomberman.getExplosionRange());
+                bombs.add(bomb);
+                bombsGrid[y][x] = bomb;
+                bomberman.decrementBombsToPlace();
+            }
+        }
+
+        private void moveTo(Bomberman bomberman, int nextX, int nextY) {
+            if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height) {
+                if (grid[nextY][nextX] == CellType.FLOOR && bombsGrid[nextY][nextX] == null) {
+                    bomberman.setCell(new Cell(nextX, nextY));
+                    Item item = itemsGrid[nextY][nextX];
+                    if (item != null) {
+                        switch (item.getItemType()) {
+                        case EXTRA_RANGE:
+                            bomberman.incrementExplosionRange();
+                            break;
+                        case EXTRA_BOMB:
+                            bomberman.incrementBombsToPlace();
+                            break;
+                        }
+                        items.remove(item);
+                        itemsGrid[nextY][nextX] = null;
+                    }
+                }
+            }
+        }
+
+        public CellType[][] getGrid() {
+            return grid;
+        }
+
+        public List<Item> getItems() {
+            return items;
+        }
+
+        public List<Bomb> getBombs() {
+            return bombs;
+        }
+
+        public Bomberman[] getBombermen() {
+            return bombermen;
+        }
+
+        public boolean isBombermenDead(int id) {
+            return deadBombermen[id];
         }
     }
 
@@ -280,11 +600,23 @@ public final class Player {
         }
     }
 
-    @Immutable
-    public static final class Bomb extends Entity {
+    public enum SimplifiedAction {
+        MOVE_UP,
+        MOVE_DOWN,
+        MOVE_LEFT,
+        MOVE_RIGHT,
+        STAY,
+        BOMB_AND_MOVE_UP,
+        BOMB_AND_MOVE_DOWN,
+        BOMB_AND_MOVE_LEFT,
+        BOMB_AND_MOVE_RIGHT,
+        BOMB_AND_STAY
+    }
+
+    public static final class Bomb extends StaticEntity {
         private final int owner;
-        private final int roundsToExplode;
         private final int explosionRange;
+        private int roundsToExplode;
 
         public Bomb(
                 int owner,
@@ -300,12 +632,31 @@ public final class Player {
             this.explosionRange = explosionRange;
         }
 
+        public Bomb(Bomb bomb) {
+            super(EntityType.BOMB, bomb.getCell());
+            this.owner = bomb.getOwner();
+            this.explosionRange = bomb.getExplosionRange();
+            this.roundsToExplode = bomb.getRoundsToExplode();
+        }
+
         public int getOwner() {
             return owner;
         }
 
         public int getRoundsToExplode() {
             return roundsToExplode;
+        }
+
+        public int incrementRoundsToExplode() {
+            return ++roundsToExplode;
+        }
+
+        public int decrementRoundsToExplode() {
+            return --roundsToExplode;
+        }
+
+        public void setRoundsToExplode(int value) {
+            roundsToExplode = value;
         }
 
         public int getExplosionRange() {
@@ -333,11 +684,21 @@ public final class Player {
         }
     }
 
-    @Immutable
-    public static final class Bomberman extends Entity {
+    public static final class Bomberman {
+
         private final int id;
-        private final int bombsToPlace;
-        private final int explosionRange;
+
+        private Cell cell;
+        private int bombsToPlace;
+        private int explosionRange;
+
+        public Bomberman(Bomberman other) {
+
+            this.id = other.getId();
+            this.cell = new Cell(other.getCell().getX(), other.getCell().getY());
+            this.bombsToPlace = other.getBombsToPlace();
+            this.explosionRange = other.getExplosionRange();
+        }
 
         public Bomberman(
                 int id,
@@ -346,9 +707,8 @@ public final class Player {
                 int bombsToPlace,
                 int explosionRange) {
 
-            super(EntityType.PLAYER, x, y);
-
             this.id = id;
+            this.cell = new Cell(x, y);
             this.bombsToPlace = bombsToPlace;
             this.explosionRange = explosionRange;
         }
@@ -361,9 +721,69 @@ public final class Player {
             return bombsToPlace;
         }
 
+        public void incrementBombsToPlace() {
+            this.bombsToPlace++;
+        }
+
+        public void decrementBombsToPlace() {
+            this.bombsToPlace--;
+        }
+
         public int getExplosionRange() {
             return explosionRange;
         }
+
+        public void incrementExplosionRange() {
+            this.explosionRange++;
+        }
+
+        public void decrementExplosionRange() {
+            this.explosionRange--;
+        }
+
+        public Cell getCell() {
+            return cell;
+        }
+
+        public void setCell(Cell cell) {
+            this.cell = cell;
+        }
+
+        // public Action perform(SimplifiedAction action) {
+        // int x = getCell().getX();
+        // int y = getCell().getY();
+        //
+        // switch (action) {
+        // case MOVE_UP:
+        // if (x - 1 >= 0) {
+        // return Action.move(x - 1, y);
+        // }
+        // return Action.move(0, y);
+        //
+        // case MOVE_DOWN:
+        // if (x + 1 < ) {
+        // return Action.move(x - 1, y);
+        // }
+        // return Action.move(0, y);
+        //
+        // case MOVE_LEFT:
+        // break;
+        // case MOVE_RIGHT:
+        // break;
+        // case STAY:
+        // break;
+        // case BOMB_AND_MOVE_UP:
+        // break;
+        // case BOMB_AND_MOVE_DOWN:
+        // break;
+        // case BOMB_AND_MOVE_LEFT:
+        // break;
+        // case BOMB_AND_MOVE_RIGHT:
+        // break;
+        // case BOMB_AND_STAY:
+        // break;
+        // }
+        // }
 
         @Override
         public boolean equals(Object o) {
@@ -375,24 +795,32 @@ public final class Player {
                 return false;
             }
 
-            if (!super.equals(o)) {
-                return false;
-            }
-
             Bomberman bomberman = (Bomberman) o;
             return id == bomberman.id &&
                     bombsToPlace == bomberman.bombsToPlace &&
-                    explosionRange == bomberman.explosionRange;
+                    explosionRange == bomberman.explosionRange &&
+                    Objects.equals(cell, bomberman.cell);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(id, bombsToPlace, explosionRange);
+            return Objects.hash(id, cell, bombsToPlace, explosionRange);
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder("Bomberman{");
+            sb.append("id=").append(id);
+            sb.append(", cell=").append(cell);
+            sb.append(", bombsToPlace=").append(bombsToPlace);
+            sb.append(", explosionRange=").append(explosionRange);
+            sb.append('}');
+            return sb.toString();
         }
     }
 
     @Immutable
-    public static final class Item extends Entity {
+    public static final class Item extends StaticEntity {
 
         private final ItemType itemType;
 
@@ -432,13 +860,17 @@ public final class Player {
     }
 
     @Immutable
-    public static class Entity {
+    public static class StaticEntity {
 
         private final Cell cell;
         private final EntityType entityType;
 
-        public Entity(EntityType entityType, int x, int y) {
-            this.cell = new Cell(x, y);
+        public StaticEntity(EntityType entityType, int x, int y) {
+            this(entityType, new Cell(x, y));
+        }
+
+        public StaticEntity(EntityType entityType, Cell cell) {
+            this.cell = cell;
             this.entityType = entityType;
         }
 
@@ -460,7 +892,7 @@ public final class Player {
                 return false;
             }
 
-            Entity entity = (Entity) o;
+            StaticEntity entity = (StaticEntity) o;
             return Objects.equals(cell, entity.cell) &&
                     entityType == entity.entityType;
         }
@@ -591,8 +1023,9 @@ public final class Player {
         PLAYER, BOMB, ITEM
     }
 
+    // TODO: clean this up
     public enum CellType {
-        FLOOR, BOX, BLOCK
+        FLOOR, BOX, BLOCK, BOX_WITH_NO_ITEM, BOX_WITH_EXTRA_RANGE, BOX_WITH_EXTRA_BOMB
     }
 
     public enum ActionType {
