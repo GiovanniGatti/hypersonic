@@ -2,15 +2,12 @@ package player;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Scanner;
-import java.util.function.BiConsumer;
 
 import jdk.nashorn.internal.ir.annotations.Immutable;
 
@@ -67,8 +64,8 @@ public final class Player {
          */
         public HypersonicGameEngine(
                 CellType[][] grid,
-                Bomb[] bombs,
-                Item[] items,
+                List<Bomb> bombs,
+                List<Item> items,
                 Bomberman[] bombermen) {
 
             this.height = grid.length;
@@ -77,7 +74,7 @@ public final class Player {
             this.bombsGrid = new Bomb[height][width];
 
             this.grid = grid;
-            this.bombs = new ArrayList<>(bombs.length);
+            this.bombs = new ArrayList<>(bombs.size());
 
             for (Bomb bomb : bombs) {
                 Bomb copy = new Bomb(bomb);
@@ -88,7 +85,7 @@ public final class Player {
                 this.bombsGrid[y][x] = copy;
             }
 
-            this.items = new ArrayList<>(items.length);
+            this.items = new ArrayList<>(items.size());
             for (Item item : items) {
                 this.items.add(item);
 
@@ -374,26 +371,15 @@ public final class Player {
         private final int height;
         private final int myId;
 
-        private int remainingRounds;
-
         private final CellType[][] grid;
-        private final List<Box> boxes;
-
-        private Bomberman player;
-        private final List<Bomberman> opponents;
-        private final Map<Integer, List<Bomb>> ownerBombs;
-
         private final List<Bomb> bombs;
-
         private final List<Item> items;
 
-        private final int[][] distTo;
+        private final List<Bomberman> bombermen;
 
-        private final Map<Cell, Bomb> bombsAt;
-        private final Map<Cell, Item> itemsAt;
-        private final Map<Cell, Bomberman> bombermenAt;
+        private Bomberman player;
 
-        private final List<Cell> targetableBoxes;
+        private int remainingRounds;
 
         InputRepository(InputSupplier in) {
             this.in = in;
@@ -405,22 +391,9 @@ public final class Player {
             this.remainingRounds = 200;
 
             this.grid = new CellType[height][width];
-            this.boxes = new ArrayList<>();
-
-            this.ownerBombs = new HashMap<>();
-            this.opponents = new ArrayList<>();
             this.bombs = new ArrayList<>();
             this.items = new ArrayList<>();
-
-            this.distTo = new int[height][width];
-            for (int i = 0; i < height; i++) {
-                Arrays.fill(distTo[i], Integer.MAX_VALUE);
-            }
-
-            this.bombsAt = new HashMap<>();
-            this.targetableBoxes = new ArrayList<>();
-            this.itemsAt = new HashMap<>();
-            this.bombermenAt = new HashMap<>();
+            this.bombermen = new ArrayList<>();
         }
 
         @Override
@@ -428,15 +401,9 @@ public final class Player {
 
             remainingRounds--;
 
-            boxes.clear();
-            opponents.clear();
-            ownerBombs.clear();
             bombs.clear();
             items.clear();
-            bombsAt.clear();
-            targetableBoxes.clear();
-            itemsAt.clear();
-            bombermenAt.clear();
+            bombermen.clear();
 
             for (int i = 0; i < height; i++) {
                 String row = in.nextLine();
@@ -447,13 +414,12 @@ public final class Player {
                     } else if (cell == 'X') {
                         this.grid[i][j] = CellType.BLOCK;
                     } else {
-                        this.grid[i][j] = CellType.BOX;
                         if (cell == '0') {
-                            boxes.add(new Box(BoxContent.NO_ITEM, j, i));
+                            this.grid[i][j] = CellType.BOX_WITH_NO_ITEM;
                         } else if (cell == '1') {
-                            boxes.add(new Box(BoxContent.EXTRA_RANGE, j, i));
+                            this.grid[i][j] = CellType.BOX_WITH_EXTRA_RANGE;
                         } else {
-                            boxes.add(new Box(BoxContent.EXTRA_BOMB, j, i));
+                            this.grid[i][j] = CellType.BOX_WITH_EXTRA_BOMB;
                         }
                     }
                 }
@@ -470,24 +436,16 @@ public final class Player {
                 int param2 = in.nextInt();
 
                 if (entityType == 0) {
-                    Bomberman bomberman = new Bomberman(owner, x, y, param1, param2);
-                    if (owner == myId) {
-                        player = bomberman;
-                    } else {
-                        opponents.add(bomberman);
+                    Bomberman player = new Bomberman(owner, x, y, param1, param2);
+                    if (myId == owner) {
+                        this.player = player;
                     }
-
-                    bombermenAt.put(new Cell(x, y), bomberman);
+                    bombermen.add(player);
                 } else if (entityType == 1) {
-                    Bomb bomb = new Bomb(owner, x, y, param1, param2);
-                    ownerBombs.putIfAbsent(owner, new ArrayList<>());
-                    ownerBombs.get(owner).add(bomb);
-                    bombs.add(bomb);
-                    bombsAt.put(new Cell(x, y), bomb);
+                    bombs.add(new Bomb(owner, x, y, param1, param2));
                 } else {
                     Item item = new Item((param1 == 1) ? ItemType.EXTRA_RANGE : ItemType.EXTRA_BOMB, x, y);
                     items.add(item);
-                    itemsAt.put(new Cell(x, y), item);
                 }
             }
 
@@ -514,20 +472,8 @@ public final class Player {
             return player;
         }
 
-        public List<Bomberman> getOpponents() {
-            return opponents;
-        }
-
         public List<Bomb> getBombs() {
             return bombs;
-        }
-
-        public List<Bomb> getBombsFor(int owner) {
-            return ownerBombs.getOrDefault(owner, new ArrayList<>());
-        }
-
-        public List<Box> getBoxes() {
-            return boxes;
         }
 
         public List<Item> getItems() {
@@ -536,67 +482,6 @@ public final class Player {
 
         public int getRemainingRounds() {
             return remainingRounds;
-        }
-
-        public List<Cell> getTargetableBoxes() {
-            return targetableBoxes;
-        }
-
-        void acceptForExplosionRange(Bomb bomb, BiConsumer<Integer, Integer> consumer) {
-            acceptForExplosionRange(bomb.getCell(), bomb.getExplosionRange(), consumer);
-        }
-
-        void acceptForExplosionRange(Cell bomb, int range, BiConsumer<Integer, Integer> consumer) {
-            final int x = bomb.getX();
-            final int y = bomb.getY();
-
-            // evaluating left X axis
-            for (int j = x - 1; j > x - range; j--) {
-                if (j < 0 || hasObstructionAt(j, y)) {
-                    break;
-                }
-                consumer.accept(j, y);
-            }
-
-            // evaluating right X axis
-            for (int j = x + 1; j < x + range; j++) {
-                if (j > (width - 1) || hasObstructionAt(j, y)) {
-                    break;
-                }
-                consumer.accept(j, y);
-            }
-
-            // evaluating upper Y axis
-            for (int i = y - 1; i > y - range; i--) {
-                if (i < 0 || hasObstructionAt(x, i)) {
-                    break;
-                }
-                consumer.accept(x, i);
-            }
-
-            // evaluating down Y axis
-            for (int i = y + 1; i < y + range; i++) {
-                if (i > (height - 1) || hasObstructionAt(x, i)) {
-                    break;
-                }
-                consumer.accept(x, i);
-            }
-        }
-
-        private boolean hasBombAt(int x, int y) {
-            return bombsAt.containsKey(new Cell(x, y));
-        }
-
-        private boolean hasItemAt(int x, int y) {
-            return itemsAt.containsKey(new Cell(x, y));
-        }
-
-        private boolean hasBombermanAt(int x, int y) {
-            return bombermenAt.containsKey(new Cell(x, y));
-        }
-
-        private boolean hasObstructionAt(int x, int y) {
-            return grid[y][x] != CellType.FLOOR || hasBombAt(x, y) || hasItemAt(x, y) || hasBombermanAt(x, y);
         }
     }
 
@@ -912,55 +797,6 @@ public final class Player {
     }
 
     @Immutable
-    public static final class Box {
-
-        private final BoxContent boxContent;
-        private final Cell cell;
-
-        public Box(BoxContent boxContent, int x, int y) {
-            this.cell = new Cell(x, y);
-            this.boxContent = boxContent;
-        }
-
-        public BoxContent getBoxContent() {
-            return boxContent;
-        }
-
-        public Cell getCell() {
-            return cell;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            Box box = (Box) o;
-            return boxContent == box.boxContent &&
-                    Objects.equals(cell, box.cell);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(boxContent, cell);
-        }
-
-        @Override
-        public String toString() {
-            final StringBuilder sb = new StringBuilder("Box{");
-            sb.append("boxContent=").append(boxContent);
-            sb.append(", cell=").append(cell);
-            sb.append('}');
-            return sb.toString();
-        }
-    }
-
-    @Immutable
     public static class Cell {
         private final int x;
         private final int y;
@@ -1015,17 +851,12 @@ public final class Player {
         EXTRA_RANGE, EXTRA_BOMB
     }
 
-    public enum BoxContent {
-        NO_ITEM, EXTRA_RANGE, EXTRA_BOMB
-    }
-
     public enum EntityType {
-        PLAYER, BOMB, ITEM
+        BOMB, ITEM
     }
 
-    // TODO: clean this up
     public enum CellType {
-        FLOOR, BOX, BLOCK, BOX_WITH_NO_ITEM, BOX_WITH_EXTRA_RANGE, BOX_WITH_EXTRA_BOMB
+        FLOOR, BLOCK, BOX_WITH_NO_ITEM, BOX_WITH_EXTRA_RANGE, BOX_WITH_EXTRA_BOMB
     }
 
     public enum ActionType {

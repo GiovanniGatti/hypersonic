@@ -1,5 +1,9 @@
 package player;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,8 +29,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "1.2",
                         "...");
 
-        Bomb[] bombs = new Bomb[] { new Bomb(0, 1, 1, 1, 2) };
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Collections.singletonList(new Bomb(0, 1, 1, 1, 2));
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[0];
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -50,8 +54,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "...",
                         "...");
 
-        Bomb[] bombs = new Bomb[] { new Bomb(0, 1, 1, 1, 2) };
-        Item[] items = new Item[] { new Item(ItemType.EXTRA_BOMB, 2, 1), new Item(ItemType.EXTRA_RANGE, 0, 1) };
+        List<Bomb> bombs = Collections.singletonList(new Bomb(0, 1, 1, 1, 2));
+        List<Item> items = Arrays.asList(new Item(ItemType.EXTRA_BOMB, 2, 1), new Item(ItemType.EXTRA_RANGE, 0, 1));
         Bomberman[] bombermen = new Bomberman[0];
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -71,8 +75,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "...",
                         "...");
 
-        Bomb[] bombs = new Bomb[] { new Bomb(0, 1, 1, 1, 2), new Bomb(1, 0, 1, 8, 2) };
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Arrays.asList(new Bomb(0, 1, 1, 1, 2), new Bomb(1, 0, 1, 8, 2));
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[0];
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -93,8 +97,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "....",
                         "0...");
 
-        Bomb[] bombs = new Bomb[] { new Bomb(0, 0, 2, 1, 5) };
-        Item[] items = new Item[] { new Item(ItemType.EXTRA_BOMB, 0, 3) };
+        List<Bomb> bombs = Collections.singletonList(new Bomb(0, 0, 2, 1, 5));
+        List<Item> items = Collections.singletonList(new Item(ItemType.EXTRA_BOMB, 0, 3));
         Bomberman[] bombermen = new Bomberman[0];
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -121,8 +125,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "...",
                         "...");
 
-        Bomb[] bombs = new Bomb[] { new Bomb(0, 1, 1, 1, 5) };
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Collections.singletonList(new Bomb(0, 1, 1, 1, 5));
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[] { new Bomberman(0, 0, 1, 0, 0), new Bomberman(1, 0, 2, 0, 0) };
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -145,8 +149,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "...",
                         "...");
 
-        Bomb[] bombs = new Bomb[0];
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Collections.emptyList();
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[] { new Bomberman(0, 0, 1, 1, 0) };
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -166,8 +170,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         "...",
                         "...");
 
-        Bomb[] bombs = new Bomb[0];
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Collections.emptyList();
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[] { new Bomberman(0, 0, 1, 0, 0) };
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
@@ -186,8 +190,8 @@ public class HypersonicGameEngineTest implements WithAssertions {
                         ".1.",
                         "...");
 
-        Bomb[] bombs = new Bomb[0];
-        Item[] items = new Item[0];
+        List<Bomb> bombs = Collections.emptyList();
+        List<Item> items = Collections.emptyList();
         Bomberman[] bombermen = new Bomberman[] { new Bomberman(0, 0, 1, 0, 0) };
 
         HypersonicGameEngine engine = new HypersonicGameEngine(grid, bombs, items, bombermen);
