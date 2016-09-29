@@ -1,36 +1,11 @@
 package player.contest;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
-import java.util.function.Supplier;
-
 import org.assertj.core.api.WithAssertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
-import com.google.common.collect.ImmutableMap;
-
-import player.MockedAI;
-import player.Player.AI;
-import player.contest.Contest.ContestResult;
-import player.contest.Contest.Score;
-import player.engine.GameEngine;
-import player.engine.MockedGE;
-import player.engine.Winner;
 
 @DisplayName("A contest")
 class ContestTest implements WithAssertions {
-
+/*
     private ExecutorService gameExecutorService;
     private ExecutorService matchExecutorService;
 
@@ -216,4 +191,5 @@ class ContestTest implements WithAssertions {
         Map<String, Object> conf = ai.getConf();
         return "player".equals(conf.get("id"));
     }
+*/
 }

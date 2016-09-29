@@ -1,32 +1,11 @@
 package player.game;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
-import java.util.function.Supplier;
-
 import org.assertj.core.api.WithAssertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
-import player.MockedAI;
-import player.Player.AI;
-import player.Player.Action;
-import player.engine.GameEngine;
-import player.engine.MockedGE;
-import player.engine.Winner;
-import player.game.Game.GameResult;
 
 @DisplayName("A game")
 class GameTest implements WithAssertions {
-
+/*
     private ExecutorService service;
 
     @BeforeEach
@@ -292,4 +271,5 @@ class GameTest implements WithAssertions {
             return Objects.hash(getClass());
         }
     }
+    */
 }

@@ -1,6 +1,8 @@
 package player.engine;
 
+import player.Player;
 import player.Player.Action;
+import player.Player.InputSupplier;
 
 public interface GameEngine {
 
@@ -24,12 +26,12 @@ public interface GameEngine {
     /**
      * Player input stream.
      */
-    int playerInput();
+    InputSupplier playerInput();
 
     /**
      * Opponent input stream.
      */
-    int opponentInput();
+    InputSupplier opponentInput();
 
     /**
      * Returns the current player score

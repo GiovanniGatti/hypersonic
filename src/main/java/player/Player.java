@@ -59,54 +59,7 @@ public final class Player {
             int x = repo.getPlayer().getCell().getX();
             int y = repo.getPlayer().getCell().getY();
 
-            switch (nextAction) {
-            case MOVE_UP:
-                if (y - 1 < 0) {
-                    return new Action[] { Action.move(x, 0) };
-                }
-                return new Action[] { Action.move(x, y - 1) };
-            case BOMB_AND_MOVE_UP:
-                if (y - 1 < 0) {
-                    return new Action[] { Action.bomb(x, 0) };
-                }
-                return new Action[] { Action.bomb(x, y - 1) };
-            case MOVE_DOWN:
-                if (y + 1 >= height) {
-                    return new Action[] { Action.move(x, height - 1) };
-                }
-                return new Action[] { Action.move(x, y + 1) };
-            case BOMB_AND_MOVE_DOWN:
-                if (y + 1 >= height) {
-                    return new Action[] { Action.bomb(x, height - 1) };
-                }
-                return new Action[] { Action.bomb(x, y + 1) };
-            case MOVE_LEFT:
-                if (x - 1 < 0) {
-                    return new Action[] { Action.move(0, y) };
-                }
-                return new Action[] { Action.move(x - 1, y) };
-            case BOMB_AND_MOVE_LEFT:
-                if (x - 1 < 0) {
-                    return new Action[] { Action.bomb(0, y) };
-                }
-                return new Action[] { Action.bomb(x - 1, y) };
-            case MOVE_RIGHT:
-                if (x + 1 >= width) {
-                    return new Action[] { Action.move(width - 1, y) };
-                }
-                return new Action[] { Action.move(x + 1, y) };
-            case BOMB_AND_MOVE_RIGHT:
-                if (x + 1 >= width) {
-                    return new Action[] { Action.bomb(width - 1, y) };
-                }
-                return new Action[] { Action.bomb(x + 1, y) };
-            case STAY:
-                return new Action[] { Action.move(x, y) };
-            case BOMB_AND_STAY:
-                return new Action[] { Action.bomb(x, y) };
-            default:
-                throw new IllegalStateException("Unknown action=" + nextAction);
-            }
+            return new Action[] { Action.forSimplifiedAction(nextAction, x, y, height, width) };
         }
 
         private Chromosome find(int movements, int popSize, int generations) {
@@ -123,7 +76,7 @@ public final class Player {
                                 repo.getGrid(),
                                 repo.getBombs(),
                                 repo.getItems(),
-                                new Bomberman[] { repo.getPlayer() }));
+                                repo.getPlayer()));
                 pool.add(chromosome);
             }
 
@@ -149,13 +102,13 @@ public final class Player {
                                     repo.getGrid(),
                                     repo.getBombs(),
                                     repo.getItems(),
-                                    new Bomberman[] { repo.getPlayer() }));
+                                    repo.getPlayer()));
                     n2.evaluate(
                             new HypersonicGameEngine(
                                     repo.getGrid(),
                                     repo.getBombs(),
                                     repo.getItems(),
-                                    new Bomberman[] { repo.getPlayer() }));
+                                    repo.getPlayer()));
 
                     // Add to the new pool
                     newPool.add(n1);
@@ -337,7 +290,7 @@ public final class Player {
                 CellType[][] grid,
                 List<Bomb> bombs,
                 List<Item> items,
-                Bomberman[] bombermen) {
+                Bomberman... bombermen) {
 
             this.height = grid.length;
             this.width = grid[0].length;
@@ -1249,28 +1202,79 @@ public final class Player {
     @Immutable
     public static class Action {
 
+        private final SimplifiedAction simplifiedAction;
         private final ActionType type;
         private final int x;
         private final int y;
         private final String message;
 
-        public static Action move(int x, int y) {
-            return new Action(ActionType.MOVE, x, y);
+        public static Action forSimplifiedAction(SimplifiedAction action, int x, int y, int height, int width) {
+
+            boolean bomb = false;
+            int targetX = x, targetY = y;
+
+            switch (action) {
+            case BOMB_AND_MOVE_UP:
+                bomb = true;
+            case MOVE_UP:
+                targetY = y - 1;
+                if (targetY < 0) {
+                    targetY = 0;
+                }
+                break;
+
+            case BOMB_AND_MOVE_DOWN:
+                bomb = true;
+            case MOVE_DOWN:
+                targetY = y + 1;
+                if (targetY >= height) {
+                    targetY = height - 1;
+                }
+                break;
+
+            case BOMB_AND_MOVE_LEFT:
+                bomb = true;
+            case MOVE_LEFT:
+                targetX = x - 1;
+                if (targetX < 0) {
+                    targetX = 0;
+                }
+                break;
+
+            case BOMB_AND_MOVE_RIGHT:
+                bomb = true;
+            case MOVE_RIGHT:
+                targetX = x + 1;
+                if (targetX >= width) {
+                    targetX = width - 1;
+                }
+                break;
+
+            case BOMB_AND_STAY:
+                bomb = true;
+            case STAY:
+                break;
+            default:
+                throw new IllegalStateException("Unknown action=" + action);
+            }
+
+            return new Action(action, bomb ? ActionType.BOMB : ActionType.MOVE, targetX, targetY);
         }
 
-        public static Action bomb(int x, int y) {
-            return new Action(ActionType.BOMB, x, y);
+        public Action(SimplifiedAction simplifiedAction, ActionType type, int x, int y) {
+            this(simplifiedAction, type, x, y, "");
         }
 
-        public Action(ActionType type, int x, int y) {
-            this(type, x, y, "");
-        }
-
-        public Action(ActionType type, int x, int y, String message) {
+        public Action(SimplifiedAction simplifiedAction, ActionType type, int x, int y, String message) {
+            this.simplifiedAction = simplifiedAction;
             this.type = type;
             this.x = x;
             this.y = y;
             this.message = message;
+        }
+
+        public SimplifiedAction getSimplifiedAction() {
+            return simplifiedAction;
         }
 
         public String asString() {

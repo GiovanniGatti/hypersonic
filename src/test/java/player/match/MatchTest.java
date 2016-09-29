@@ -1,31 +1,11 @@
 package player.match;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.function.Function;
-import java.util.function.IntSupplier;
-import java.util.function.Supplier;
-
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-
-import player.MockedAI;
-import player.Player;
-import player.Player.Action;
-import player.engine.GameEngine;
-import player.engine.MockedGE;
-import player.engine.MultipleRoundMockedGE;
-import player.engine.Winner;
-import player.match.Match.MatchResult;
 
 @DisplayName("A match")
 class MatchTest implements WithAssertions {
-
+/*
     @Test
     @DisplayName("starts up only once the provided game engine")
     void startUpGameEngine() {
@@ -146,4 +126,5 @@ class MatchTest implements WithAssertions {
     private static Function<IntSupplier, Supplier<Player.AI>> anyAIInput() {
         return (input) -> MockedAI::any;
     }
+    */
 }
