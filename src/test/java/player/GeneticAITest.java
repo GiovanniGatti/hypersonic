@@ -36,4 +36,25 @@ public class GeneticAITest {
 
         System.out.println(System.currentTimeMillis() - currentTimeMillis);
     }
+
+    @Test
+    void completle_blocked_should_never_place_a_bomb() {
+        InputSupplier inputSupplier =
+                state.withGrid(
+                        ".X0",
+                        "XX.",
+                        "1..")
+                        .withMyId(0)
+                        .withBombermans(new Player.Bomberman(0, 0, 0, 1, 3))
+                        .toInputSupplier();
+
+        InputRepository repository = new InputRepository(inputSupplier);
+        repository.update();
+        GeneticAI ai = new GeneticAI(repository);
+
+        long currentTimeMillis = System.currentTimeMillis();
+        ai.play();
+
+        System.out.println(System.currentTimeMillis() - currentTimeMillis);
+    }
 }

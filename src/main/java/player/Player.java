@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,9 +48,8 @@ public final class Player {
         @Override
         public Action[] play() {
             long currentTimeMillis = System.currentTimeMillis();
-            Chromosome chromosome = find(15, 16, 5);
+            Chromosome chromosome = find(16, 40, 5);
             System.err.println(System.currentTimeMillis() - currentTimeMillis);
-            System.err.println(chromosome);
 
             SimplifiedAction nextAction = chromosome.genes[0];
 
@@ -164,25 +164,11 @@ public final class Player {
 
                 // Add the newPool back to the old pool
                 pool.addAll(newPool);
-
-                // double tot = 0.0;
-                // for (int x = newPool.size() - 1; x >= 0; x--) {
-                // double evaluate = (newPool.get(x)).evaluate;
-                // tot += evaluate;
-                // }
-                // System.out.println("generation " + generation + ": " + tot);
             }
 
-            double maxScore = Double.NEGATIVE_INFINITY;
-            Chromosome best = null;
-            for (Chromosome chromosome : newPool) {
-                if (chromosome.score > maxScore) {
-                    maxScore = chromosome.score;
-                    best = chromosome;
-                }
-            }
-
-            return best;
+            return newPool.stream()
+                    .max(Comparator.comparingDouble(Chromosome::getScore))
+                    .orElseThrow(() -> new IllegalStateException("Pool should contain at least one cromossome"));
         }
 
         private Chromosome selectMember(List<Chromosome> l) {
@@ -250,42 +236,40 @@ public final class Player {
         }
 
         public void evaluate(HypersonicGameEngine gameEngine) {
-            // TODO: single bomberman is being evaluated at a time -
-            // need to update model: add opponents' movements to constr
+            this.score = 0;
+
             Bomberman bomberman = gameEngine.getBombermen()[0];
-            boolean wasHeDead = false;
 
-            for (SimplifiedAction action : genes) {
+            for (int i = 0; i < genes.length; i++) {
 
-                int pastBombsToPlace = bomberman.getTotalAvailableBombs();
+                int pastAvailableBombs = bomberman.getTotalAvailableBombs();
                 int pastExplosionRange = bomberman.getExplosionRange();
                 int pastAvailablePlaces = gameEngine.accessiblePlacesFor(bomberman.getId());
 
+                SimplifiedAction action = genes[i];
                 gameEngine.perform(true, action);
 
-                if (gameEngine.isBombermenDead(bomberman.getId()) && !wasHeDead) {
-                    this.score -= 100;
-                    wasHeDead = true;
-                } else {
-                    this.score++;
+                int roundScore = 0;
+                int roundWeight = genes.length - i;
+
+                if (!gameEngine.isBombermenDead(bomberman.getId())) {
+                    roundScore += 500;
                 }
 
-                if (bomberman.getTotalAvailableBombs() > pastBombsToPlace) {
-                    this.score += 3;
+                roundScore += (bomberman.getTotalAvailableBombs() - pastAvailableBombs) * 10;
+                roundScore += (bomberman.getExplosionRange() - pastExplosionRange) * 10;
+
+                int accessiblePlacesFor = gameEngine.accessiblePlacesFor(bomberman.getId());
+
+                if (accessiblePlacesFor > pastAvailablePlaces) {
+                    roundScore += (accessiblePlacesFor - pastAvailablePlaces) * 5;
                 }
 
-                if (bomberman.getExplosionRange() > pastExplosionRange) {
-                    this.score += 3;
-                }
+                roundScore += gameEngine.getDegreesOfFeedom(bomberman) * 25;
 
-                int availablePlaces = gameEngine.accessiblePlacesFor(bomberman.getId());
-                if (availablePlaces > pastAvailablePlaces) {
-                    this.score += 3;
-                } else if (availablePlaces == 0) {
-                    this.score--;
-                } else {
-                    this.score++;
-                }
+                roundScore *= roundWeight;
+
+                this.score += roundScore;
             }
         }
 
@@ -317,6 +301,10 @@ public final class Player {
                     genes[i] = POSSIBLE_ACTIONS[random.nextInt(POSSIBLE_ACTIONS.length)];
                 }
             }
+        }
+
+        public double getScore() {
+            return score;
         }
 
         @Override
@@ -358,7 +346,7 @@ public final class Player {
 
             this.grid = new CellType[height][width];
             for (int i = 0; i < height; i++) {
-                System.arraycopy(grid[i], 0, this.grid[i], 0, grid.length);
+                System.arraycopy(grid[i], 0, this.grid[i], 0, grid[i].length);
             }
 
             this.bombs = new ArrayList<>(bombs.size());
@@ -386,7 +374,7 @@ public final class Player {
                 this.bombermen[i] = new Bomberman(bombermen[i]);
             }
 
-            this.deadBombermen = new boolean[bombermen.length];
+            this.deadBombermen = new boolean[4];
         }
 
         public void perform(SimplifiedAction... actions) {
@@ -556,14 +544,15 @@ public final class Player {
                 }
             }
 
-            for (Bomberman bomberman : bombermen) {
+            for (int i = 0; i < bombermen.length; i++) {
+                Bomberman bomberman = bombermen[i];
                 int id = bomberman.getId();
                 if (!deadBombermen[id] || relaxed) {
 
                     int x = bomberman.getCell().getX();
                     int y = bomberman.getCell().getY();
 
-                    SimplifiedAction action = actions[id];
+                    SimplifiedAction action = actions[i];
 
                     switch (action) {
                     case BOMB_AND_MOVE_UP:
@@ -609,25 +598,58 @@ public final class Player {
         }
 
         private void moveTo(Bomberman bomberman, int nextX, int nextY) {
-            if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height) {
-                if (grid[nextY][nextX] == CellType.FLOOR && bombsGrid[nextY][nextX] == null) {
-                    bomberman.setCell(new Cell(nextX, nextY));
-                    Item item = itemsGrid[nextY][nextX];
-                    if (item != null) {
-                        switch (item.getItemType()) {
-                        case EXTRA_RANGE:
-                            bomberman.incrementExplosionRange();
-                            break;
-                        case EXTRA_BOMB:
-                            bomberman.incrementBombsToPlace();
-                            bomberman.incrementTotalAvailableBombs();
-                            break;
-                        }
-                        items.remove(item);
-                        itemsGrid[nextY][nextX] = null;
+            if (canMoveTo(nextX, nextY)) {
+                bomberman.setCell(new Cell(nextX, nextY));
+                Item item = itemsGrid[nextY][nextX];
+                if (item != null) {
+                    switch (item.getItemType()) {
+                    case EXTRA_RANGE:
+                        bomberman.incrementExplosionRange();
+                        break;
+                    case EXTRA_BOMB:
+                        bomberman.incrementBombsToPlace();
+                        bomberman.incrementTotalAvailableBombs();
+                        break;
                     }
+                    items.remove(item);
+                    itemsGrid[nextY][nextX] = null;
                 }
             }
+        }
+
+        public int getDegreesOfFeedom(Bomberman bomberman) {
+            int x = bomberman.getCell().getX();
+            int y = bomberman.getCell().getY();
+
+            int degreesOfFreedom = 0;
+
+            if (canMoveTo(x, y - 1)) {
+                degreesOfFreedom++;
+            }
+
+            if (canMoveTo(x, y + 1)) {
+                degreesOfFreedom++;
+            }
+
+            if (canMoveTo(x - 1, y)) {
+                degreesOfFreedom++;
+            }
+
+            if (canMoveTo(x + 1, y)) {
+                degreesOfFreedom++;
+            }
+
+            return degreesOfFreedom;
+        }
+
+        private boolean canMoveTo(int nextX, int nextY) {
+            if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height) {
+                if (grid[nextY][nextX] == CellType.FLOOR && bombsGrid[nextY][nextX] == null) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public CellType[][] getGrid() {
@@ -884,10 +906,6 @@ public final class Player {
 
         public int getRoundsToExplode() {
             return roundsToExplode;
-        }
-
-        public int incrementRoundsToExplode() {
-            return ++roundsToExplode;
         }
 
         public int decrementRoundsToExplode() {
