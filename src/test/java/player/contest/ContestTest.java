@@ -111,7 +111,7 @@ class ContestTest implements WithAssertions {
     class Statisticts {
 
         @Test
-        @DisplayName("the right average score")
+        @DisplayName("the right average evaluate")
         void averageScore() throws ExecutionException, InterruptedException {
             List<Function<IntSupplier, Supplier<AI>>> ais = Arrays.asList(
                     (t) -> ContestTest::anyPlayerAI,

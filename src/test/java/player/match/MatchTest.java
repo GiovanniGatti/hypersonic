@@ -107,7 +107,7 @@ class MatchTest implements WithAssertions {
         }
 
         @Test
-        @DisplayName("the right player score")
+        @DisplayName("the right player evaluate")
         void playerScore() {
             Supplier<GameEngine> gameEngineBuild = () -> MockedGE.anyWithPlayerScore(17);
 
@@ -119,7 +119,7 @@ class MatchTest implements WithAssertions {
         }
 
         @Test
-        @DisplayName("the right opponent score")
+        @DisplayName("the right opponent evaluate")
         void opponentScore() {
             Supplier<GameEngine> gameEngineBuild = () -> MockedGE.anyWithOpponentScore(17);
 

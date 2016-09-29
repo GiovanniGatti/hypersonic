@@ -117,7 +117,7 @@ class GameTest implements WithAssertions {
     class Statisticts {
 
         @Test
-        @DisplayName("the right average player score")
+        @DisplayName("the right average player evaluate")
         void averagePlayerScore() throws Exception {
             GameEngine match1 = MockedGE.anyWithPlayerScore(15);
             GameEngine match2 = MockedGE.anyWithPlayerScore(16);
@@ -134,7 +134,7 @@ class GameTest implements WithAssertions {
         }
 
         @Test
-        @DisplayName("the right average opponent score")
+        @DisplayName("the right average opponent evaluate")
         void averageOpponentScore() throws Exception {
             GameEngine match1 = MockedGE.anyWithOpponentScore(15);
             GameEngine match2 = MockedGE.anyWithOpponentScore(16);
