@@ -18,16 +18,18 @@ public final class GameRunner {
 
     public static void main(String args[]) throws ExecutionException, InterruptedException {
 
-        ExecutorService service = Executors.newFixedThreadPool(3);
+        ExecutorService pool = Executors.newFixedThreadPool(3);
 
         Game game = new Game(
                 playerSupplier -> () -> new GeneticAI(new InputRepository(playerSupplier)),
                 opponentSupplier -> () -> new GeneticAI(new InputRepository(opponentSupplier)),
                 () -> new PvPGE(Grids.GRID_1),
-                service);
+                pool);
 
         GameResult gameResult = game.call();
 
         System.out.println(gameResult);
+
+        pool.shutdown();
     }
 }

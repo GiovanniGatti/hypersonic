@@ -32,5 +32,8 @@ public final class ContestRunner {
         ContestResult contestResult = contest.call();
 
         System.out.println(contestResult);
+
+        gamePool.shutdown();
+        matchPool.shutdown();
     }
 }

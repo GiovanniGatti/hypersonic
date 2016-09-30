@@ -70,12 +70,12 @@ public class PvPGE extends ConfigurableGE {
 
     @Override
     public int getPlayerScore() {
-        return 0;
+        return gameEngine.getTotalDestroyedBoxes(this.player.getId());
     }
 
     @Override
     public int getOpponentScore() {
-        return 0;
+        return gameEngine.getTotalDestroyedBoxes(this.opponent.getId());
     }
 
     @Override
@@ -109,9 +109,12 @@ public class PvPGE extends ConfigurableGE {
             return Winner.ON_GOING;
         }
 
-        // TODO: when both dead or when both are alive but timeout occurred, winner is who has destroyed more boxes
+        if (gameEngine.getTotalDestroyedBoxes(this.player.getId()) >
+                gameEngine.getTotalDestroyedBoxes(this.opponent.getId())) {
+            return Winner.PLAYER;
+        }
 
-        return Winner.PLAYER;
+        return Winner.OPPONENT;
     }
 
     @Override

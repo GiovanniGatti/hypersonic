@@ -47,9 +47,9 @@ public final class Player {
 
         @Override
         public Action[] play() {
-            long currentTimeMillis = System.currentTimeMillis();
+            // long currentTimeMillis = System.currentTimeMillis();
             Chromosome chromosome = find(16, 40, 5);
-            System.err.println(System.currentTimeMillis() - currentTimeMillis);
+            // System.err.println(System.currentTimeMillis() - currentTimeMillis);
 
             SimplifiedAction nextAction = chromosome.genes[0];
 
@@ -283,6 +283,8 @@ public final class Player {
         private final Item[][] itemsGrid;
         private final Bomb[][] bombsGrid;
 
+        private int[] destroyedBoxesCount;
+
         /**
          * Builder with initial state
          */
@@ -328,6 +330,7 @@ public final class Player {
             }
 
             this.deadBombermen = new boolean[4];
+            this.destroyedBoxesCount = new int[4];
         }
 
         public void perform(SimplifiedAction... actions) {
@@ -379,6 +382,7 @@ public final class Player {
                                 || grid[y][j] == CellType.BOX_WITH_EXTRA_BOMB
                                 || grid[y][j] == CellType.BOX_WITH_EXTRA_RANGE) {
                             boxesToDestroy.add(new Cell(j, y));
+                            destroyedBoxesCount[owner]++;
                             break;
                         }
 
@@ -404,6 +408,7 @@ public final class Player {
                                 || grid[y][j] == CellType.BOX_WITH_EXTRA_BOMB
                                 || grid[y][j] == CellType.BOX_WITH_EXTRA_RANGE) {
                             boxesToDestroy.add(new Cell(j, y));
+                            destroyedBoxesCount[owner]++;
                             break;
                         }
 
@@ -429,6 +434,7 @@ public final class Player {
                                 || grid[i][x] == CellType.BOX_WITH_EXTRA_BOMB
                                 || grid[i][x] == CellType.BOX_WITH_EXTRA_RANGE) {
                             boxesToDestroy.add(new Cell(x, i));
+                            destroyedBoxesCount[owner]++;
                             break;
                         }
 
@@ -453,6 +459,7 @@ public final class Player {
                                 || grid[i][x] == CellType.BOX_WITH_EXTRA_BOMB
                                 || grid[i][x] == CellType.BOX_WITH_EXTRA_RANGE) {
                             boxesToDestroy.add(new Cell(x, i));
+                            destroyedBoxesCount[owner]++;
                             break;
                         }
 
@@ -625,24 +632,28 @@ public final class Player {
             return deadBombermen[id];
         }
 
+        public int getTotalDestroyedBoxes(int id) {
+            return destroyedBoxesCount[id];
+        }
+
         public int accessiblePlacesFor(int id) {
             for (Bomberman bomberman : bombermen) {
                 if (bomberman.getId() == id) {
                     int x = bomberman.getCell().getX();
                     int y = bomberman.getCell().getY();
 
-                    return runFloodFillAvaliablePlacesCalculator(y, x);
+                    return runFloodFillAvailablePlacesCalculator(y, x);
                 }
             }
 
             throw new IllegalStateException("Unknown bomberman with id=" + id);
         }
 
-        private int runFloodFillAvaliablePlacesCalculator(int i, int j) {
-            return runFloodFillAvaliablePlacesCalculator(new boolean[height][width], i, j);
+        private int runFloodFillAvailablePlacesCalculator(int i, int j) {
+            return runFloodFillAvailablePlacesCalculator(new boolean[height][width], i, j);
         }
 
-        private int runFloodFillAvaliablePlacesCalculator(boolean[][] mark, int i, int j) {
+        private int runFloodFillAvailablePlacesCalculator(boolean[][] mark, int i, int j) {
             int accessiblePlaces = 1;
             mark[i][j] = true;
 
@@ -651,7 +662,7 @@ public final class Player {
                     grid[i - 1][j] == CellType.FLOOR &&
                     bombsGrid[i - 1][j] == null) {
 
-                accessiblePlaces += runFloodFillAvaliablePlacesCalculator(mark, i - 1, j);
+                accessiblePlaces += runFloodFillAvailablePlacesCalculator(mark, i - 1, j);
             }
 
             if (i + 1 < height &&
@@ -659,7 +670,7 @@ public final class Player {
                     grid[i + 1][j] == CellType.FLOOR &&
                     bombsGrid[i + 1][j] == null) {
 
-                accessiblePlaces += runFloodFillAvaliablePlacesCalculator(mark, i + 1, j);
+                accessiblePlaces += runFloodFillAvailablePlacesCalculator(mark, i + 1, j);
             }
 
             if (j - 1 >= 0 &&
@@ -667,7 +678,7 @@ public final class Player {
                     grid[i][j - 1] == CellType.FLOOR &&
                     bombsGrid[i][j - 1] == null) {
 
-                accessiblePlaces += runFloodFillAvaliablePlacesCalculator(mark, i, j - 1);
+                accessiblePlaces += runFloodFillAvailablePlacesCalculator(mark, i, j - 1);
             }
 
             if (j + 1 < width &&
@@ -675,7 +686,7 @@ public final class Player {
                     grid[i][j + 1] == CellType.FLOOR &&
                     bombsGrid[i][j + 1] == null) {
 
-                accessiblePlaces += runFloodFillAvaliablePlacesCalculator(mark, i, j + 1);
+                accessiblePlaces += runFloodFillAvailablePlacesCalculator(mark, i, j + 1);
             }
 
             return accessiblePlaces;
