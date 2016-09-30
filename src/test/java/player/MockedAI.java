@@ -66,7 +66,7 @@ public final class MockedAI {
         private final Action[] actions;
 
         private MockedArtificialIntelligence(Map<String, Object> conf, Action[] actions) {
-            super(conf, MockedArtificialIntelligence::noOp);
+            super(conf, new NoOP());
             this.actions = actions;
         }
 
@@ -83,8 +83,12 @@ public final class MockedAI {
                     .toString();
         }
 
-        private static void noOp() {
-            // ILB
+        private static class NoOP implements Player.RepositoryUpdater {
+
+            @Override
+            public void update() {
+
+            }
         }
     }
 }

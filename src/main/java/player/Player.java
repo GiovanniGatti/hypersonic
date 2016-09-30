@@ -22,7 +22,7 @@ public final class Player {
         InputSupplier in = new InputReader(new Scanner(System.in));
 
         InputRepository repo = new InputRepository(in);
-        AI ai = new DefaultGeneticAI(repo);
+        AI ai = new BlockAwareAI(repo);
 
         while (true) {
             ai.updateRepository();
@@ -30,6 +30,102 @@ public final class Player {
             for (Action action : actions) {
                 System.out.println(action.asString());
             }
+        }
+    }
+
+    public static class BlockAwareAI extends GeneticAI {
+
+        private final int deadBombermanWeight;
+        private final int bombItemWeight;
+        private final int explosionRangeWeight;
+        private final int freedomWeight;
+        private final int destroyedBoxWeight;
+
+        public BlockAwareAI(
+                int deadBombermanWeight,
+                int bombItemWeight,
+                int explosionRangeWeight,
+                int freedomWeight,
+                int destroyedBoxWeight,
+                InputRepository repo) {
+
+            super(32, 40, 5, .7, .001, repo,
+                    (ge, genes) ->
+                    evaluate(
+                            deadBombermanWeight,
+                            bombItemWeight,
+                            explosionRangeWeight,
+                            freedomWeight,
+                            destroyedBoxWeight,
+                            ge,
+                            genes));
+
+            this.deadBombermanWeight = deadBombermanWeight;
+            this.bombItemWeight = bombItemWeight;
+            this.explosionRangeWeight = explosionRangeWeight;
+            this.freedomWeight = freedomWeight;
+            this.destroyedBoxWeight = destroyedBoxWeight;
+        }
+
+        public BlockAwareAI(InputRepository repo) {
+            this(500, 45, 30, 10, 60, repo);
+        }
+
+        private static double evaluate(
+                int deadBombermanWeight,
+                int bombItemWeight,
+                int explosionRangeWeight,
+                int freedomWeight,
+                int destroyedBoxWeight,
+                HypersonicGameEngine gameEngine, SimplifiedAction[] genes) {
+
+            Bomberman bomberman = gameEngine.getBombermen()[0];
+
+            double totalScore = 0;
+
+            for (int i = 0; i < genes.length; i++) {
+
+                int pastAvailableBombs = bomberman.getTotalAvailableBombs();
+                int pastExplosionRange = bomberman.getExplosionRange();
+                int pastTotalDestroyedBoxes = gameEngine.getTotalDestroyedBoxes(bomberman.getId());
+
+                SimplifiedAction action = genes[i];
+                gameEngine.perform(true, action);
+
+                int roundScore = 0;
+                int roundWeight = genes.length - i;
+
+                if (!gameEngine.isBombermenDead(bomberman.getId())) {
+                    roundScore += deadBombermanWeight;
+                }
+
+                roundScore += (bomberman.getTotalAvailableBombs() - pastAvailableBombs) * bombItemWeight;
+                roundScore += (bomberman.getExplosionRange() - pastExplosionRange) * explosionRangeWeight;
+
+                roundScore += gameEngine.getDegreesOfFeedom(bomberman) * freedomWeight;
+
+                roundScore *= roundWeight;
+
+                // take destroyed boxes into consideration
+                int totalDestroyedBoxes = gameEngine.getTotalDestroyedBoxes(bomberman.getId());
+                roundScore += (totalDestroyedBoxes - pastTotalDestroyedBoxes) * (roundWeight + 8) * destroyedBoxWeight;
+
+                totalScore += roundScore;
+            }
+
+            return totalScore;
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder("BlockAwareAI{");
+            sb.append("deadBombermanWeight=").append(deadBombermanWeight);
+            sb.append(", bombItemWeight=").append(bombItemWeight);
+            sb.append(", explosionRangeWeight=").append(explosionRangeWeight);
+            sb.append(", freedomWeight=").append(freedomWeight);
+            sb.append(", destroyedBoxWeight=").append(destroyedBoxWeight);
+            sb.append('}');
+            return sb.toString();
         }
     }
 

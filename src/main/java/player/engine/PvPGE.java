@@ -109,8 +109,8 @@ public class PvPGE extends ConfigurableGE {
             return Winner.ON_GOING;
         }
 
-        if (gameEngine.getTotalDestroyedBoxes(this.player.getId()) >
-                gameEngine.getTotalDestroyedBoxes(this.opponent.getId())) {
+        if (gameEngine.getTotalDestroyedBoxes(this.player.getId()) > gameEngine.getTotalDestroyedBoxes(this.opponent
+                .getId())) {
             return Winner.PLAYER;
         }
 

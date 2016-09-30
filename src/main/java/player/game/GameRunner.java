@@ -4,6 +4,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import player.Player.BlockAwareAI;
 import player.Player.DefaultGeneticAI;
 import player.Player.InputRepository;
 import player.engine.PvPGE;
@@ -18,13 +19,14 @@ public final class GameRunner {
 
     public static void main(String args[]) throws ExecutionException, InterruptedException {
 
-        ExecutorService pool = Executors.newFixedThreadPool(3);
+        ExecutorService pool = Executors.newFixedThreadPool(5);
 
         Game game = new Game(
-                playerSupplier -> () -> new DefaultGeneticAI(new InputRepository(playerSupplier)),
+                playerSupplier -> () -> new BlockAwareAI(new InputRepository(playerSupplier)),
                 opponentSupplier -> () -> new DefaultGeneticAI(new InputRepository(opponentSupplier)),
                 () -> new PvPGE(Grids.GRID_1),
-                pool);
+                pool,
+                10);
 
         GameResult gameResult = game.call();
 
