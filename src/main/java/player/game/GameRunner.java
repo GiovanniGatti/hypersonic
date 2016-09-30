@@ -4,7 +4,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import player.Player.GeneticAI;
+import player.Player.DefaultGeneticAI;
 import player.Player.InputRepository;
 import player.engine.PvPGE;
 import player.game.Game.GameResult;
@@ -21,8 +21,8 @@ public final class GameRunner {
         ExecutorService pool = Executors.newFixedThreadPool(3);
 
         Game game = new Game(
-                playerSupplier -> () -> new GeneticAI(new InputRepository(playerSupplier)),
-                opponentSupplier -> () -> new GeneticAI(new InputRepository(opponentSupplier)),
+                playerSupplier -> () -> new DefaultGeneticAI(new InputRepository(playerSupplier)),
+                opponentSupplier -> () -> new DefaultGeneticAI(new InputRepository(opponentSupplier)),
                 () -> new PvPGE(Grids.GRID_1),
                 pool);
 

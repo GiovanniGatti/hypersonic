@@ -1,6 +1,6 @@
 package player.match;
 
-import player.Player.GeneticAI;
+import player.Player.DefaultGeneticAI;
 import player.Player.InputRepository;
 import player.engine.PvPGE;
 import player.grid.Grids;
@@ -15,8 +15,8 @@ public final class MatchRunner {
     public static void main(String args[]) {
 
         Match match = new Match(
-                playerSupplier -> () -> new GeneticAI(new InputRepository(playerSupplier)),
-                opponentSupplier -> () -> new GeneticAI(new InputRepository(opponentSupplier)),
+                playerSupplier -> () -> new DefaultGeneticAI(new InputRepository(playerSupplier)),
+                opponentSupplier -> () -> new DefaultGeneticAI(new InputRepository(opponentSupplier)),
                 () -> new PvPGE(Grids.GRID_1));
 
         MatchResult matchResult = match.call();

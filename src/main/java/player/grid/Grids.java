@@ -1,5 +1,8 @@
 package player.grid;
 
+import java.util.Arrays;
+import java.util.List;
+
 public final class Grids {
 
     private Grids() {
@@ -70,4 +73,8 @@ public final class Grids {
             ".21.02.20.12.",
             ".X.X2X.X2X.X.",
             "....1.0.1...." };
+
+    public static List<String[]> getAllGrids() {
+        return Arrays.asList(GRID_1, GRID_2, GRID_3, GRID_4, GRID_5);
+    }
 }

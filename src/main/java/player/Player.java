@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.function.BiFunction;
 
 import jdk.nashorn.internal.ir.annotations.Immutable;
 
@@ -21,7 +22,7 @@ public final class Player {
         InputSupplier in = new InputReader(new Scanner(System.in));
 
         InputRepository repo = new InputRepository(in);
-        AI ai = new GeneticAI(repo);
+        AI ai = new DefaultGeneticAI(repo);
 
         while (true) {
             ai.updateRepository();
@@ -32,15 +33,98 @@ public final class Player {
         }
     }
 
+    public static class DefaultGeneticAI extends GeneticAI {
+
+        public DefaultGeneticAI(
+                int geneLength,
+                int popSize,
+                int generations,
+                double crossoverRate,
+                double mutationRate,
+                InputRepository repo) {
+
+            super(geneLength, popSize, generations, crossoverRate, mutationRate, repo, DefaultGeneticAI::evaluate);
+        }
+
+        public DefaultGeneticAI(InputRepository repo) {
+            super(16, 40, 5, .7, .001, repo, DefaultGeneticAI::evaluate);
+        }
+
+        private static double evaluate(HypersonicGameEngine gameEngine, SimplifiedAction[] genes) {
+            Bomberman bomberman = gameEngine.getBombermen()[0];
+
+            double totalScore = 0;
+
+            for (int i = 0; i < genes.length; i++) {
+
+                int pastAvailableBombs = bomberman.getTotalAvailableBombs();
+                int pastExplosionRange = bomberman.getExplosionRange();
+                int pastAvailablePlaces = gameEngine.accessiblePlacesFor(bomberman.getId());
+
+                SimplifiedAction action = genes[i];
+                gameEngine.perform(true, action);
+
+                int roundScore = 0;
+                int roundWeight = genes.length - i;
+
+                if (!gameEngine.isBombermenDead(bomberman.getId())) {
+                    roundScore += 500;
+                }
+
+                roundScore += (bomberman.getTotalAvailableBombs() - pastAvailableBombs) * 10;
+                roundScore += (bomberman.getExplosionRange() - pastExplosionRange) * 10;
+
+                int accessiblePlacesFor = gameEngine.accessiblePlacesFor(bomberman.getId());
+
+                if (accessiblePlacesFor > pastAvailablePlaces) {
+                    roundScore += (accessiblePlacesFor - pastAvailablePlaces) * 5;
+                }
+
+                roundScore += gameEngine.getDegreesOfFeedom(bomberman) * 25;
+
+                roundScore *= roundWeight;
+
+                totalScore += roundScore;
+            }
+
+            return totalScore;
+        }
+
+        @Override
+        public String toString() {
+            return "DefaultGeneticAI{} " + super.toString();
+        }
+    }
+
     public static class GeneticAI extends AI {
 
         private static final SimplifiedAction[] POSSIBLE_ACTIONS = SimplifiedAction.values();
 
         private final Random random;
         private final InputRepository repo;
+        private final int geneLength;
+        private final int popSize;
+        private final int generations;
+        private final double crossoverRate;
+        private final double mutationRate;
+        private final BiFunction<HypersonicGameEngine, SimplifiedAction[], Double> evaluationFunction;
 
-        public GeneticAI(InputRepository repo) {
+        public GeneticAI(
+                int geneLength,
+                int popSize,
+                int generations,
+                double crossoverRate,
+                double mutationRate,
+                InputRepository repo,
+                BiFunction<HypersonicGameEngine, SimplifiedAction[], Double> evaluationFunction) {
+
             super(repo);
+            this.geneLength = geneLength;
+            this.popSize = popSize;
+            this.generations = generations;
+            this.crossoverRate = crossoverRate;
+            this.mutationRate = mutationRate;
+            this.evaluationFunction = evaluationFunction;
             this.random = new Random();
             this.repo = repo;
         }
@@ -48,7 +132,7 @@ public final class Player {
         @Override
         public Action[] play() {
             // long currentTimeMillis = System.currentTimeMillis();
-            Chromosome chromosome = find(16, 40, 5);
+            Chromosome chromosome = find(geneLength, popSize, generations);
             // System.err.println(System.currentTimeMillis() - currentTimeMillis);
 
             SimplifiedAction nextAction = chromosome.genes[0];
@@ -70,13 +154,18 @@ public final class Player {
 
             // Generate unique chromosomes in the pool
             for (int i = 0; i < popSize; i++) {
-                Chromosome chromosome = new Chromosome(generateRandomMovements(movements));
+
+                SimplifiedAction[] genes = generateRandomMovements(movements);
+                Chromosome chromosome =
+                        new Chromosome(crossoverRate, mutationRate, genes, evaluationFunction, random);
+
                 chromosome.evaluate(
                         new HypersonicGameEngine(
                                 repo.getGrid(),
                                 repo.getBombs(),
                                 repo.getItems(),
                                 repo.getPlayer()));
+
                 pool.add(chromosome);
             }
 
@@ -158,6 +247,17 @@ public final class Player {
 
             return actions;
         }
+
+        @Override
+        public String toString() {
+            return "GeneticAI{" +
+                    "geneLength=" + geneLength +
+                    ", popSize=" + popSize +
+                    ", generations=" + generations +
+                    ", crossoverRate=" + crossoverRate +
+                    ", mutationRate=" + mutationRate +
+                    "} ";
+        }
     }
 
     private static class Chromosome {
@@ -166,6 +266,7 @@ public final class Player {
 
         private final double crossoverRate;
         private final double mutationRate;
+        private final BiFunction<HypersonicGameEngine, SimplifiedAction[], Double> evaluationFunction;
         private final Random random;
 
         private SimplifiedAction[] genes;
@@ -175,55 +276,19 @@ public final class Player {
                 double crossoverRate,
                 double mutationRate,
                 SimplifiedAction[] genes,
+                BiFunction<HypersonicGameEngine, SimplifiedAction[], Double> evaluationFunction,
                 Random random) {
 
             this.crossoverRate = crossoverRate;
             this.mutationRate = mutationRate;
             this.genes = genes;
+            this.evaluationFunction = evaluationFunction;
             this.random = random;
             this.score = 0.0;
         }
 
-        public Chromosome(SimplifiedAction[] genes) {
-            this(.7, .001, genes, new Random());
-        }
-
         public void evaluate(HypersonicGameEngine gameEngine) {
-            this.score = 0;
-
-            Bomberman bomberman = gameEngine.getBombermen()[0];
-
-            for (int i = 0; i < genes.length; i++) {
-
-                int pastAvailableBombs = bomberman.getTotalAvailableBombs();
-                int pastExplosionRange = bomberman.getExplosionRange();
-                int pastAvailablePlaces = gameEngine.accessiblePlacesFor(bomberman.getId());
-
-                SimplifiedAction action = genes[i];
-                gameEngine.perform(true, action);
-
-                int roundScore = 0;
-                int roundWeight = genes.length - i;
-
-                if (!gameEngine.isBombermenDead(bomberman.getId())) {
-                    roundScore += 500;
-                }
-
-                roundScore += (bomberman.getTotalAvailableBombs() - pastAvailableBombs) * 10;
-                roundScore += (bomberman.getExplosionRange() - pastExplosionRange) * 10;
-
-                int accessiblePlacesFor = gameEngine.accessiblePlacesFor(bomberman.getId());
-
-                if (accessiblePlacesFor > pastAvailablePlaces) {
-                    roundScore += (accessiblePlacesFor - pastAvailablePlaces) * 5;
-                }
-
-                roundScore += gameEngine.getDegreesOfFeedom(bomberman) * 25;
-
-                roundScore *= roundWeight;
-
-                this.score += roundScore;
-            }
+            this.score = evaluationFunction.apply(gameEngine, genes);
         }
 
         public void crossOver(Chromosome another) {
