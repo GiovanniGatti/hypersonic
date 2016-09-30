@@ -1,6 +1,5 @@
 package player.engine;
 
-import player.Player;
 import player.Player.Action;
 import player.Player.InputSupplier;
 

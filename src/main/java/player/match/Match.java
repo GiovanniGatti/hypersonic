@@ -36,6 +36,9 @@ public final class Match implements Callable<Match.MatchResult> {
         gameEngine.start();
 
         do {
+            player.updateRepository();
+            opponent.updateRepository();
+
             Action[] playerActions = player.play();
             Action[] opponentActions = opponent.play();
 

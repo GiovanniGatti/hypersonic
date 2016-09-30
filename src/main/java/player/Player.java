@@ -700,7 +700,7 @@ public final class Player {
 
         private int remainingRounds;
 
-        InputRepository(InputSupplier in) {
+        public InputRepository(InputSupplier in) {
             this.in = in;
             this.width = in.nextInt();
             this.height = in.nextInt();
